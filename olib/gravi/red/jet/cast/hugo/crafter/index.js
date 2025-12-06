@@ -188,19 +188,26 @@ function extractTextFromExtra(extraArray) {
 }
 
 // Prozess Beendigung
+function shutdown() {
+    console.log('[Info] Shutting down...');
+    if (jumpInterval) clearInterval(jumpInterval);
+    jumpInterval = null;
 
-process.on('SIGINT', () => {
-    console.log('[Info] Shutting down...');
-    if (bot) bot.quit('Shutting down');
-    if (jumpInterval) clearInterval(jumpInterval);
+    if (bot) {
+        try {
+            bot.quit('Shutting down');
+        } catch (e) {}
+        // mineflayer lässt manchmal noch sockets offen!
+        bot.removeAllListeners(); // kill alle EventListeners
+        bot = null;
+    }
+    // stdin schließen (verhindert Blockieren)
+    process.stdin.pause();
+
     process.exit(0);
-});
-process.on('SIGTERM', () => {
-    console.log('[Info] Shutting down...');
-    if (bot) bot.quit('Shutting down');
-    if (jumpInterval) clearInterval(jumpInterval);
-    process.exit(0);
-});
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 // Bot starten
 createBot();
