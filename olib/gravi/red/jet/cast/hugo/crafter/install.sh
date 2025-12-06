@@ -5,7 +5,7 @@
 set -e
 
 INSTALL_DIR="/mnt/server"
-RAW_URL_BASE="http://raw.gravijet.net/olib/gravi/red/jet/cast/hugo"
+RAW_URL_BASE="http://raw.gravijet.net/olib/gravi/red/jet/cast/hugo/crafter"
 
 echo "[INFO] Starting AFK-Bot installation in $INSTALL_DIR"
 
