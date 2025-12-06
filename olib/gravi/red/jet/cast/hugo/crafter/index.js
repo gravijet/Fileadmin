@@ -188,7 +188,14 @@ function extractTextFromExtra(extraArray) {
 }
 
 // Prozess Beendigung
+
 process.on('SIGINT', () => {
+    console.log('[Info] Shutting down...');
+    if (bot) bot.quit('Shutting down');
+    if (jumpInterval) clearInterval(jumpInterval);
+    process.exit(0);
+});
+process.on('SIGTERM', () => {
     console.log('[Info] Shutting down...');
     if (bot) bot.quit('Shutting down');
     if (jumpInterval) clearInterval(jumpInterval);
