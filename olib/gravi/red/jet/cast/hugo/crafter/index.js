@@ -10,16 +10,19 @@ if (!fs.existsSync(AUTH_CACHE_DIR)) {
 let bot = null;
 let reconnectTimeout = null;
 let jumpInterval = null;
+let isShuttingDown = false; // Flag um doppelte Shutdowns zu verhindern
 
 // Einstellungen aus Umgebungsvariablen
 const JUMP_INTERVAL = (parseInt(process.env.JUMP_INTERVAL) || 60) * 1000;
-const ENABLE_JUMP = (process.env.ENABLE_JUMP || 'false').toLowerCase() === 'true';
+const ENABLE_JUMP = (process.env.ENABLE_JUMP || '1') === '1'; // 0 = aus, 1 = ein (Standard)
 const SERVER_IP = process.env.IP || 'gravijet.net:25565';
 const VERSION = process.env.VERSION || '1.21.8';
+const CHAT_COLOR = (process.env.CHAT_COLOR || '1') === '1'; // 0 = aus, 1 = ein (Standard)
 
 console.log(`[Config] Server: ${SERVER_IP}`);
 console.log(`[Config] Version: ${VERSION}`);
 console.log(`[Config] Jump enabled: ${ENABLE_JUMP}, Jump interval: ${JUMP_INTERVAL/1000}s`);
+console.log(`[Config] Chat color enabled: ${CHAT_COLOR}`);
 
 const FORBIDDEN_CHARS = ['$'];
 function isMessageSafe(message) {
@@ -40,15 +43,6 @@ function isMessageSafe(message) {
     return true;
 }
 
-function cleanText(text) {
-    if (!text) return '';
-    return text.toString()
-        .replace(/§[0-9a-fk-or]/g, '')
-        .replace(/\n/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
 function createBot() {
     if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
@@ -64,11 +58,6 @@ function createBot() {
     console.log(`[Bot] Connecting to ${host}:${port} with version ${VERSION}...`);
 
     try {
-        // Standard-Plugins laden und digging-Plugin entfernen (verursacht den Fehler)
-        const defaultPlugins = require('mineflayer/lib/plugins');
-        const customPlugins = { ...defaultPlugins };
-        delete customPlugins.digging; // Digging-Plugin entfernen
-
         bot = mineflayer.createBot({
             host: host,
             port: parseInt(port),
@@ -79,16 +68,24 @@ function createBot() {
             chatLengthLimit: 256,
             colorsEnabled: false,
             skipValidation: true,
-            hideErrors: true,
-            plugins: customPlugins // Custom plugins ohne digging
+            hideErrors: true
         });
 
+        let hasShownLoginMessage = false;
+
         bot.on('login', () => {
-            console.log(`[Bot] Connected as ${bot.username}.`);
+            if (!hasShownLoginMessage) {
+                console.log(`[Bot] Connected to ${SERVER_IP} with ${VERSION} as ${bot.username}.`);
+                hasShownLoginMessage = true;
+            }
         });
 
         bot.on('spawn', () => {
-            console.log('[Success] Bot spawned.');
+            if (!hasShownLoginMessage) {
+                console.log(`[Bot] Connected to ${SERVER_IP} with ${VERSION} as ${bot.username}.`);
+                hasShownLoginMessage = true;
+            }
+
             if (ENABLE_JUMP) {
                 jumpInterval = setInterval(() => {
                     if (bot && bot.entity) {
@@ -105,41 +102,44 @@ function createBot() {
             }
         });
 
-        // Automatischer Respawn
-        bot.on('death', () => {
-            console.log('[Bot] Died, respawning in 1 second...');
-            setTimeout(() => {
-                if (bot && bot._client && bot._client.ended === false) {
-                    try {
-                        // Versuche verschiedene Respawn-Methoden
-                        if (bot.respawn) {
-                            bot.respawn();
-                            console.log('[Bot] Respawned using bot.respawn()');
-                        } else if (bot._client.write) {
-                            // Direkter Respawn über Protocol
-                            bot._client.write('client_command', { actionId: 0 });
-                            console.log('[Bot] Respawned using client_command');
-                        }
-                    } catch (e) {
-                        console.log('[Error] Failed to respawn:', e.message);
-                    }
-                }
-            }, 1000);
-        });
-
-        // Chat Listener (mit Spielernamen)
-        bot.on('message', (jsonMsg) => {
+        // Chat-Handler mit Farboption
+        bot.on('message', (message) => {
             try {
-                const json = jsonMsg.json || jsonMsg;
-                if (json.translate === 'chat.type.text' && json.with && json.with.length >= 2) {
-                    const playerName = extractTextFromExtra([json.with[0]]);
-                    const messageText = extractTextFromExtra([json.with[1]]);
-                    console.log(`[${playerName}] ${messageText}`);
+                let displayText;
+                
+                if (CHAT_COLOR) {
+                    // Versuche mit toAnsi() für Farben
+                    try {
+                        if (typeof message.toAnsi === 'function') {
+                            displayText = message.toAnsi();
+                        } else {
+                            // Fallback: toString() mit Farbcodes (wenn sie bereits als ANSI konvertiert sind)
+                            displayText = message.toString();
+                        }
+                    } catch (ansiError) {
+                        // Falls toAnsi() fehlschlägt, ohne Farben
+                        displayText = message.toString().replace(/§[0-9a-fk-or]/g, '');
+                    }
                 } else {
-                    const message = jsonMsg.toString().replace(/§[0-9a-fk-or]/g, '').trim();
-                    if (message) console.log(`[System] ${message}`);
+                    // Ohne Farbcodes
+                    displayText = message.toString().replace(/§[0-9a-fk-or]/g, '');
                 }
-            } catch (e) { }
+                
+                const cleanText = displayText.trim();
+                if (cleanText && cleanText !== '') {
+                    console.log(`[System] ${cleanText}`);
+                }
+            } catch (error) {
+                // Fallback: Ohne Farbcodes
+                try {
+                    const text = message.toString().replace(/§[0-9a-fk-or]/g, '').trim();
+                    if (text && text !== '') {
+                        console.log(`[System] ${text}`);
+                    }
+                } catch (e) {
+                    // Ignoriere Fehler
+                }
+            }
         });
 
         // Chat aus Konsole senden MIT FILTER und Shutdown-Kommando
@@ -147,7 +147,9 @@ function createBot() {
             const msg = data.toString().trim();
 
             if (msg === '\\stopafkclient') {
-                shutdown();
+                if (!isShuttingDown) {
+                    shutdown();
+                }
                 return;
             }
 
@@ -166,6 +168,24 @@ function createBot() {
             }
         });
 
+        // Korrigierter Death-Handler (ohne removeAllListeners)
+        bot.on('death', () => {
+            console.log('[Bot] Died, respawning in 1 second...');
+            setTimeout(() => {
+                if (bot && bot._client && bot._client.ended === false) {
+                    try {
+                        // Einfaches Respawn ohne removeAllListeners
+                        bot.respawn();
+                        console.log('[Bot] Respawned');
+                    } catch (e) {
+                        console.log('[Error] Failed to respawn:', e.message);
+                        // Bei Fehler neu verbinden
+                        setTimeout(createBot, 5000);
+                    }
+                }
+            }, 1000);
+        });
+
         // Fehlerbehandlung & Reconnect
         bot.on('kicked', (reason) => {
             console.log(`[Kicked] ${reason}`);
@@ -173,8 +193,15 @@ function createBot() {
         });
 
         bot.on('error', (err) => {
-            console.log(`[Error] ${err.message}`);
-            setTimeout(createBot, 10000);
+            // Ignoriere Profil-Daten-Fehler (spammt sonst)
+            if (err.message.includes('Failed to obtain profile data') || 
+                err.message.includes('does the account own minecraft')) {
+                console.log('[Error] Authentication issue, reconnecting in 30s...');
+                setTimeout(createBot, 30000);
+            } else {
+                console.log(`[Error] ${err.message}`);
+                setTimeout(createBot, 10000);
+            }
         });
 
         bot.on('end', () => {
@@ -188,47 +215,43 @@ function createBot() {
     }
 }
 
-function extractTextFromExtra(extraArray) {
-    let text = '';
-    if (Array.isArray(extraArray)) {
-        extraArray.forEach(item => {
-            if (typeof item === 'string') {
-                text += item;
-            } else if (item && item.text) {
-                text += item.text;
-            } else if (item && item.extra) {
-                text += extractTextFromExtra(item.extra);
-            }
-        });
-    }
-    return text;
-}
-
 // Shutdown & Exit-Handler 
 function shutdown() {
+    if (isShuttingDown) return; // Verhindere mehrfache Ausführung
+    
+    isShuttingDown = true;
     console.log('[Info] Shutting down...');
-    if (jumpInterval) clearInterval(jumpInterval);
+    
+    if (jumpInterval) {
+        clearInterval(jumpInterval);
+        jumpInterval = null;
+    }
+    
     if (bot) {
-        try { bot.quit('Shutting down'); } catch (e) {}
-        try { bot.removeAllListeners(); } catch (e) {}
+        try { 
+            bot.quit('Shutting down'); 
+        } catch (e) {}
         bot = null;
     }
+    
     // stdin blockiert Node manchmal: Listener & Input beenden
     process.stdin.removeAllListeners('data');
-    try { process.stdin.pause(); } catch (e) {}
-    try { process.stdin.destroy && process.stdin.destroy(); } catch (e) {}
-    setTimeout(() => {
-        process.exit(0);
-    }, 300); // gibt Mineflayer etwas Zeit zum Disconnect
+    try { 
+        process.stdin.pause(); 
+    } catch (e) {}
+    
+    try { 
+        process.stdin.destroy && process.stdin.destroy(); 
+    } catch (e) {}
+    
+    // Sofort beenden ohne Verzögerung
+    process.exit(0);
 }
 
-// SIGINT und SIGTERM für Heroku/Docker/PM2
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
-
-// Node lässt stdin manchmal "offen laufen", workaround für interaktive Terminals
 if (typeof process.stdin.setRawMode === 'function') {
-    try { process.stdin.setRawMode(true); } catch { }
+    try { 
+        process.stdin.setRawMode(true); 
+    } catch { }
 }
 process.stdin.resume();
 
