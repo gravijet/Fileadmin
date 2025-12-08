@@ -38,7 +38,7 @@
             border-bottom: 1px solid rgba(76, 201, 240, 0.1);
             opacity: 0;
             transform: translateY(-20px);
-            animation: fadeInDown 0.8s 2.2s forwards;
+            animation: fadeInDown 0.8s 0.3s forwards;
         }
 
         .logo {
@@ -91,7 +91,7 @@
             color: white;
         }
 
-        /* ENHANCED Loading Screen */
+        /* ENHANCED Loading Screen - Nur 0.2 Sekunden */
         #loading-screen {
             position: fixed;
             top: 0;
@@ -104,6 +104,7 @@
             align-items: center;
             z-index: 9999;
             overflow: hidden;
+            transition: opacity 0.1s ease;
         }
 
         .loading-container {
@@ -115,7 +116,7 @@
             align-items: center;
         }
 
-        /* Floating particles */
+        /* Floating particles - schneller */
         .particle {
             position: absolute;
             width: 20px;
@@ -123,7 +124,7 @@
             border-radius: 50%;
             background: linear-gradient(90deg, #4cc9f0, #4361ee);
             opacity: 0;
-            animation: floatParticle 3s ease-in-out infinite;
+            animation: floatParticle 0.8s ease-in-out infinite;
         }
 
         .particle:nth-child(1) { 
@@ -136,28 +137,28 @@
         .particle:nth-child(2) { 
             top: 60%; 
             left: 15%; 
-            animation-delay: 0.2s; 
+            animation-delay: 0.05s; 
             width: 15px; 
             height: 15px; 
         }
         .particle:nth-child(3) { 
             top: 30%; 
             right: 15%; 
-            animation-delay: 0.4s; 
+            animation-delay: 0.1s; 
             width: 30px; 
             height: 30px; 
         }
         .particle:nth-child(4) { 
             top: 70%; 
             right: 20%; 
-            animation-delay: 0.6s; 
+            animation-delay: 0.15s; 
             width: 20px; 
             height: 20px; 
         }
         .particle:nth-child(5) { 
             top: 10%; 
             left: 50%; 
-            animation-delay: 0.8s; 
+            animation-delay: 0.2s; 
             width: 18px; 
             height: 18px; 
         }
@@ -180,14 +181,14 @@
             letter-spacing: 3px;
             text-transform: uppercase;
             position: relative;
-            animation: titleGlow 2s ease-in-out infinite alternate;
+            animation: titleGlow 0.5s ease-in-out infinite alternate;
         }
 
         .loading-subtitle {
             color: #8d99ae;
             font-size: clamp(1rem, 2vw, 1.2rem);
             margin-bottom: 40px;
-            animation: fadeInOut 3s ease-in-out infinite;
+            animation: fadeInOut 0.8s ease-in-out infinite;
         }
 
         /* Progress bar container */
@@ -207,7 +208,7 @@
             width: 0%;
             border-radius: 10px;
             position: relative;
-            animation: progressFill 2s ease-in-out forwards;
+            animation: progressFill 0.4s ease-in-out forwards;
         }
 
         .progress-bar::after {
@@ -218,7 +219,7 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            animation: shimmer 1.5s ease-in-out infinite;
+            animation: shimmer 0.5s ease-in-out infinite;
         }
 
         /* Loading dots */
@@ -234,18 +235,18 @@
             height: 15px;
             border-radius: 50%;
             background: #4cc9f0;
-            animation: dotPulse 1.5s infinite ease-in-out;
+            animation: dotPulse 0.5s infinite ease-in-out;
             box-shadow: 0 0 20px #4cc9f0;
         }
 
         .dot:nth-child(1) { animation-delay: 0s; }
         .dot:nth-child(2) { 
-            animation-delay: 0.2s; 
+            animation-delay: 0.1s; 
             background: #4361ee;
             box-shadow: 0 0 20px #4361ee;
         }
         .dot:nth-child(3) { 
-            animation-delay: 0.4s; 
+            animation-delay: 0.2s; 
             background: #4cc9f0;
             box-shadow: 0 0 20px #4cc9f0;
         }
@@ -258,7 +259,7 @@
             border-radius: 20px;
             background: linear-gradient(90deg, #4cc9f0, #4361ee, #4cc9f0);
             background-size: 300% 300%;
-            animation: gradientBorder 3s ease infinite;
+            animation: gradientBorder 0.8s ease infinite;
             opacity: 0.1;
             filter: blur(20px);
         }
@@ -279,12 +280,13 @@
         /* Hero Section - Mobile Optimized */
         .hero-section {
             text-align: center;
-            padding: 40px 0 30px 0;
+            padding: 60px 0 40px 0;
             position: relative;
             opacity: 0;
             transform: translateY(30px);
-            animation: fadeInUp 1s 2s forwards;
+            animation: fadeInUp 1s 0.4s forwards;
             width: 100%;
+            margin-bottom: 40px;
         }
 
         .main-title {
@@ -370,7 +372,7 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 30px;
-            margin: 40px auto 60px;
+            margin: 60px auto 80px;
             padding: 30px 20px;
             max-width: 1000px;
             background: rgba(20, 20, 30, 0.5);
@@ -378,7 +380,7 @@
             border: 1px solid rgba(76, 201, 240, 0.1);
             opacity: 0;
             transform: translateY(30px);
-            animation: fadeInUp 1s 2.5s forwards;
+            animation: fadeInUp 1s 0.7s forwards;
         }
 
         .stat {
@@ -408,17 +410,18 @@
 
         /* Features Section - Mobile Optimized */
         .features-section {
-            padding: 50px 0;
+            padding: 60px 0;
             width: 100%;
             opacity: 0;
             transform: translateY(30px);
-            animation: fadeInUp 1s 2.8s forwards;
+            animation: fadeInUp 1s 1s forwards;
+            margin-bottom: 60px;
         }
 
         .section-title {
             text-align: center;
             font-size: clamp(2rem, 4vw, 2.5rem);
-            margin-bottom: 40px;
+            margin-bottom: 60px;
             color: #fff;
             padding: 0 15px;
         }
@@ -426,14 +429,14 @@
         .features-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
+            gap: 30px;
             width: 100%;
         }
 
         .feature-card {
             background: rgba(20, 20, 30, 0.7);
             border-radius: 16px;
-            padding: 25px 20px;
+            padding: 30px 25px;
             border: 1px solid rgba(76, 201, 240, 0.1);
             transition: transform 0.3s ease, border-color 0.3s ease;
             opacity: 0;
@@ -442,15 +445,15 @@
         }
 
         .feature-card:nth-child(1) {
-            animation: fadeInUp 0.8s 3s forwards;
+            animation: fadeInUp 0.8s 1.2s forwards;
         }
 
         .feature-card:nth-child(2) {
-            animation: fadeInUp 0.8s 3.2s forwards;
+            animation: fadeInUp 0.8s 1.4s forwards;
         }
 
         .feature-card:nth-child(3) {
-            animation: fadeInUp 0.8s 3.4s forwards;
+            animation: fadeInUp 0.8s 1.6s forwards;
         }
 
         .feature-card:hover {
@@ -459,10 +462,11 @@
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
         }
 
+        /* BEHOBEN: Feature Icons und Kreise - Euro Icon geändert */
         .feature-icon {
-            font-size: clamp(2.5rem, 4vw, 3.5rem);
+            font-size: clamp(2rem, 4vw, 2.5rem);
             color: #4cc9f0;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -472,11 +476,21 @@
             background: rgba(76, 201, 240, 0.1);
             margin-left: auto;
             margin-right: auto;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .feature-icon i {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
         }
 
         .feature-title {
             font-size: clamp(1.4rem, 2.5vw, 1.6rem);
-            margin-bottom: 12px;
+            margin-bottom: 15px;
             color: #fff;
         }
 
@@ -488,42 +502,51 @@
 
         /* Pricing Section - Mobile Optimized */
         .pricing-section {
-            padding: 60px 0;
+            padding: 80px 0;
             width: 100%;
             opacity: 0;
             transform: translateY(30px);
-            animation: fadeInUp 1s 3.2s forwards;
+            animation: fadeInUp 1s 1.8s forwards;
+            margin-bottom: 60px;
         }
 
+        /* BEHOBEN: Pricing Cards Breite */
         .pricing-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
             margin-top: 30px;
+        }
+
+        @media (min-width: 1200px) {
+            .pricing-cards {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
 
         .pricing-card {
             background: rgba(20, 20, 30, 0.7);
             border-radius: 16px;
-            padding: 30px 20px;
+            padding: 30px 25px;
             border: 1px solid rgba(76, 201, 240, 0.1);
             text-align: center;
             transition: transform 0.3s ease, border-color 0.3s ease;
             position: relative;
             opacity: 0;
             transform: translateY(20px);
+            width: 100%;
         }
 
         .pricing-card:nth-child(1) {
-            animation: fadeInUp 0.8s 3.6s forwards;
+            animation: fadeInUp 0.8s 2s forwards;
         }
 
         .pricing-card:nth-child(2) {
-            animation: fadeInUp 0.8s 3.8s forwards;
+            animation: fadeInUp 0.8s 2.2s forwards;
         }
 
         .pricing-card:nth-child(3) {
-            animation: fadeInUp 0.8s 4s forwards;
+            animation: fadeInUp 0.8s 2.4s forwards;
         }
 
         .pricing-card:hover {
@@ -534,7 +557,6 @@
         .pricing-card.popular {
             border: 2px solid #4cc9f0;
             background: rgba(76, 201, 240, 0.05);
-            transform: scale(1);
         }
 
         @media (min-width: 768px) {
@@ -592,7 +614,7 @@
 
         .pricing-features {
             list-style: none;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             text-align: left;
         }
 
@@ -632,17 +654,18 @@
 
         /* Partner Section */
         .partner-section {
-            padding: 60px 0;
+            padding: 80px 0;
             width: 100%;
             opacity: 0;
             transform: translateY(30px);
-            animation: fadeInUp 1s 4.2s forwards;
+            animation: fadeInUp 1s 2.6s forwards;
+            margin-bottom: 60px;
         }
 
         .partner-card {
             background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(76, 201, 240, 0.1));
             border-radius: 20px;
-            padding: 40px 20px;
+            padding: 50px 30px;
             border: 1px solid rgba(76, 201, 240, 0.25);
             text-align: center;
             backdrop-filter: blur(15px);
@@ -665,7 +688,7 @@
 
         .partner-title {
             font-size: clamp(1.8rem, 3vw, 2.2rem);
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             background: linear-gradient(90deg, #4cc9f0, #4361ee);
             -webkit-background-clip: text;
             background-clip: text;
@@ -675,7 +698,7 @@
 
         .partner-description {
             color: #a0b3d6;
-            margin-bottom: 25px;
+            margin-bottom: 30px;
             line-height: 1.6;
             font-size: clamp(1rem, 1.5vw, 1.2rem);
             max-width: 700px;
@@ -692,7 +715,7 @@
             font-family: monospace;
             font-size: clamp(1.1rem, 2vw, 1.3rem);
             font-weight: 700;
-            margin: 20px 0;
+            margin: 25px 0;
             border: 1px solid rgba(76, 201, 240, 0.3);
             max-width: 90%;
             word-wrap: break-word;
@@ -722,38 +745,52 @@
         /* Honest Pricing Note */
         .honest-note {
             text-align: center;
-            margin-top: 30px;
+            margin-top: 40px;
             color: #a0b3d6;
             font-size: clamp(0.9rem, 1.5vw, 1rem);
             max-width: 800px;
             margin-left: auto;
             margin-right: auto;
-            padding: 20px;
+            padding: 25px;
             background: rgba(20, 20, 30, 0.5);
             border-radius: 12px;
             border: 1px solid rgba(76, 201, 240, 0.1);
         }
 
-        /* Footer */
+        /* Footer - Abgerundet und schöner */
         .footer {
             text-align: center;
-            padding: 40px 20px;
-            margin-top: 60px;
+            padding: 50px 20px;
+            margin-top: 80px;
             color: #8d99ae;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             opacity: 0;
-            animation: fadeIn 1s 4.6s forwards;
+            animation: fadeIn 1s 3s forwards;
             background: rgba(10, 10, 15, 0.8);
             backdrop-filter: blur(10px);
             width: 100%;
+            border-radius: 30px 30px 0 0;
+            position: relative;
+        }
+
+        .footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 4px;
+            background: linear-gradient(90deg, #4cc9f0, #4361ee);
+            border-radius: 0 0 2px 2px;
         }
 
         .footer-links {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 20px;
-            margin-bottom: 25px;
+            gap: 25px;
+            margin-bottom: 35px;
         }
 
         .footer-link {
@@ -761,23 +798,26 @@
             text-decoration: none;
             transition: color 0.3s ease;
             font-size: clamp(0.9rem, 1.5vw, 1.1rem);
-            padding: 8px 16px;
-            border-radius: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
             transition: all 0.3s ease;
         }
 
         .footer-link:hover {
             color: #4cc9f0;
             background: rgba(76, 201, 240, 0.1);
+            transform: translateY(-2px);
         }
 
         .copyright {
             font-size: clamp(0.85rem, 1.5vw, 1rem);
             color: #6b7280;
             line-height: 1.5;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
-        /* NEW ANIMATIONS for Loading Screen */
+        /* NEU ANIMATIONS for Loading Screen - Kürzere Dauer */
         @keyframes floatParticle {
             0%, 100% {
                 transform: translateY(0) translateX(0);
@@ -970,7 +1010,7 @@
         /* Very Small Screens */
         @media (max-width: 480px) {
             .hero-section {
-                padding: 30px 0 20px 0;
+                padding: 40px 0 30px 0;
             }
             
             .main-title {
@@ -991,6 +1031,7 @@
             .stats-section {
                 padding: 20px 15px;
                 gap: 20px;
+                margin: 40px auto 60px;
             }
             
             .stat {
@@ -1004,7 +1045,7 @@
             .feature-icon {
                 width: 70px;
                 height: 70px;
-                font-size: 2rem;
+                font-size: 1.8rem;
             }
             
             .partner-card {
@@ -1023,11 +1064,17 @@
             .progress-container {
                 width: 250px;
             }
+            
+            .footer {
+                border-radius: 20px 20px 0 0;
+                padding: 40px 15px;
+                margin-top: 60px;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- ENHANCED Loading Screen with more animations -->
+    <!-- ENHANCED Loading Screen - Nur 0.2 Sekunden -->
     <div id="loading-screen">
         <div class="loading-container">
             <!-- Floating particles -->
@@ -1043,7 +1090,7 @@
             <!-- Main loading content -->
             <div class="loading-content">
                 <h1 class="loading-title">GRAVIJET</h1>
-                <p class="loading-subtitle">Premium AFK Service Loading...</p>
+                <p class="loading-subtitle">Loading...</p>
                 
                 <!-- Progress bar -->
                 <div class="progress-container">
@@ -1083,9 +1130,9 @@
     <!-- Main Content -->
     <div id="main-content">
         <!-- Hero Section -->
-        <section class="hero-section">
+        <section class="hero-section" id="home">
             <div class="discount-badge">
-                <i class="fas fa-tag"></i> 10% Off with Code: 10OFF
+                <i class="fas fa-tag"></i> 10% Off with Code: 2025
             </div>
             <h1 class="main-title">Stay AFK 24/7 with GraviJet</h1>
             <p class="main-subtitle">Keep your Minecraft account online 24/7 without keeping your computer running. Get 1 free AFK server per month, and add more for just 0.99€ each.</p>
@@ -1121,7 +1168,7 @@
                         <i class="fas fa-shield-alt"></i>
                     </div>
                     <h3 class="feature-title">Reliable & Safe</h3>
-                    <p class="feature-description">GraviJet keeps your Minecraft account online 24/7 using legitimate methods. Your account stays safe while you stay connected to your favorite servers.</p>
+                    <p class="feature-description">GraviJet keeps your Minecraft account online 24/7 using Javascript. You consume no electricity or resources on your PC while you stay connected to your favorite servers.</p>
                 </div>
                 
                 <div class="feature-card">
@@ -1133,25 +1180,28 @@
                 </div>
                 
                 <div class="feature-card">
+                    <!-- Geändert von fa-euro-sign zu fa-money-bill-wave -->
                     <div class="feature-icon">
-                        <i class="fas fa-euro-sign"></i>
+                        <i class="fas fa-money-bill-wave"></i>
                     </div>
                     <h3 class="feature-title">Incredible Value</h3>
-                    <p class="feature-description">Start with 1 free AFK server forever. Need more? Add additional servers for just 0.99€ each per month. 5 servers total for only 2.97€/month.</p>
+                    <!-- Text aktualisiert für 7 Server -->
+                    <p class="feature-description">Start with 1 free AFK server forever. Need more? Add additional servers for just 0.99€ each per month. 7 servers total for only 4.46€/month.</p>
                 </div>
             </div>
         </section>
 
-        <!-- Pricing Section -->
+        <!-- Pricing Section - In der ursprünglichen Reihenfolge -->
         <section class="pricing-section" id="pricing">
             <h2 class="section-title">Simple, Transparent Pricing</h2>
             <div class="pricing-cards">
+                <!-- Free Tier - Ganz links -->
                 <div class="pricing-card">
                     <h3 class="pricing-title">Free Tier</h3>
                     <div class="pricing-price">0€</div>
                     <div class="pricing-period">per month</div>
                     <ul class="pricing-features">
-                        <li>1 AFK Server Included</li>
+                        <li>1 Java Account 24/7 AFK</li>
                         <li>24/7 Uptime</li>
                         <li>Basic Support</li>
                         <li>No Credit Card Required</li>
@@ -1159,33 +1209,35 @@
                     <a href="https://dash.gravijet.net/" target="_blank" class="pricing-button">Get Started Free</a>
                 </div>
                 
+                <!-- Extra Server - In der Mitte -->
+                <div class="pricing-card">
+                    <h3 class="pricing-title">Extra Account</h3>
+                    <div class="pricing-price">0.99€</div>
+                    <div class="pricing-period">per account/month</div>
+                    <ul class="pricing-features">
+                        <li>Add 1 Extra AFK Account</li>
+                        <li>Cheap</li>
+                        <li>Priority Support</li>
+                        <li>Support the Service</li>
+                    </ul>
+                    <a href="https://dash.gravijet.net/" target="_blank" class="pricing-button">Add Extra Account</a>
+                </div>
+                
+                <!-- Best Value - Ganz rechts - Auf 7 Server aktualisiert -->
                 <div class="pricing-card popular">
                     <div class="popular-badge">Best Value - 25% Off</div>
-                    <h3 class="pricing-title">5 Servers Total</h3>
+                    <h3 class="pricing-title">7 Accounts Total</h3>
                     <div class="pricing-price">
-                        <span class="original-price">3.96€</span> 2.97€
+                        <span class="original-price">5.94€</span> 4.46€
                     </div>
                     <div class="pricing-period">per month (total)</div>
                     <ul class="pricing-features">
-                        <li>5 Total AFK Servers</li>
-                        <li>1 Free + 4 Extra Servers</li>
+                        <li>7 Total AFK Accounts</li>
+                        <li>1 Free + 6 Extra Accounts</li>
                         <li>Premium Support</li>
                         <li>Save 25% with bundle</li>
                     </ul>
-                    <a href="https://dash.gravijet.net/" target="_blank" class="pricing-button">Get 5 Servers Bundle</a>
-                </div>
-                
-                <div class="pricing-card">
-                    <h3 class="pricing-title">Extra Server</h3>
-                    <div class="pricing-price">0.99€</div>
-                    <div class="pricing-period">per server/month</div>
-                    <ul class="pricing-features">
-                        <li>Add 1 Extra AFK Server</li>
-                        <li>Full 24/7 Support</li>
-                        <li>Instant Setup</li>
-                        <li>Easy Management</li>
-                    </ul>
-                    <a href="https://dash.gravijet.net/" target="_blank" class="pricing-button">Add Extra Server</a>
+                    <a href="https://dash.gravijet.net/" target="_blank" class="pricing-button">Get 7 Accounts Bundle</a>
                 </div>
             </div>
             
@@ -1212,27 +1264,27 @@
             </div>
         </section>
         
-        <!-- Footer -->
+        <!-- Footer - Abgerundet und schöner -->
         <footer class="footer">
             <div class="footer-links">
-                <a href="#" class="footer-link">Home</a>
+                <a href="#home" class="footer-link">Home</a>
                 <a href="#features" class="footer-link">Features</a>
                 <a href="#pricing" class="footer-link">Pricing</a>
                 <a href="https://dash.gravijet.net/" target="_blank" class="footer-link">Dashboard</a>
-                <a href="#" class="footer-link">Contact</a>
+                <a href="https://discord.gg/ZcNeMFBG7u" class="footer-link">Contact</a>
             </div>
-            <p class="copyright">© 2023 GraviJet AFK Service. Not affiliated with Mojang or Microsoft. Powered by Index-Hosting.com</p>
+            <p class="copyright">© 2025 GraviJet AFK Service. Not affiliated with Mojang or Microsoft.</p>
         </footer>
     </div>
 
     <script>
-        // Enhanced Loading Screen - Shorter duration (2 seconds)
+        // Loading Screen - Nur 0.2 Sekunden
         setTimeout(() => {
             const loadingScreen = document.getElementById('loading-screen');
             const mainContent = document.getElementById('main-content');
             
             // Add exit animation to loading screen
-            loadingScreen.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            loadingScreen.style.transition = 'opacity 0.1s ease, transform 0.1s ease';
             loadingScreen.style.opacity = '0';
             loadingScreen.style.transform = 'scale(0.9)';
             
@@ -1246,8 +1298,8 @@
                 setTimeout(() => {
                     mainContent.style.animation = 'fadeInUp 0.8s ease forwards';
                 }, 10);
-            }, 600);
-        }, 2000); // Reduced from 3000ms to 2000ms
+            }, 100);
+        }, 200); // Nur 0.2 Sekunden (200ms)
 
         // Mobile Menu Toggle
         const mobileMenuToggle = document.getElementById('mobileMenuToggle');
