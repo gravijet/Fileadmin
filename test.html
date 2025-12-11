@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* Basic Styles */
         * {
             margin: 0;
             padding: 0;
@@ -22,7 +21,6 @@
             overflow-x: hidden;
         }
 
-        /* Navigation */
         .navbar {
             position: fixed;
             top: 0;
@@ -91,7 +89,6 @@
             color: white;
         }
 
-        /* ENHANCED Loading Screen - Nur 0.2 Sekunden */
         #loading-screen {
             position: fixed;
             top: 0;
@@ -116,7 +113,6 @@
             align-items: center;
         }
 
-        /* Floating particles - schneller */
         .particle {
             position: absolute;
             width: 20px;
@@ -163,7 +159,6 @@
             height: 18px; 
         }
 
-        /* Main loading content */
         .loading-content {
             text-align: center;
             z-index: 2;
@@ -191,7 +186,6 @@
             animation: fadeInOut 0.8s ease-in-out infinite;
         }
 
-        /* Progress bar container */
         .progress-container {
             width: 300px;
             height: 8px;
@@ -222,7 +216,6 @@
             animation: shimmer 0.5s ease-in-out infinite;
         }
 
-        /* Loading dots */
         .loading-dots {
             display: flex;
             justify-content: center;
@@ -251,7 +244,6 @@
             box-shadow: 0 0 20px #4cc9f0;
         }
 
-        /* Animated gradient border */
         .loading-border {
             position: absolute;
             width: 80%;
@@ -264,7 +256,6 @@
             filter: blur(20px);
         }
 
-        /* Main Content */
         #main-content {
             opacity: 0;
             transition: opacity 0.8s ease;
@@ -277,7 +268,6 @@
             padding-right: 20px;
         }
 
-        /* Hero Section - Mobile Optimized */
         .hero-section {
             text-align: center;
             padding: 60px 0 40px 0;
@@ -322,7 +312,6 @@
             box-shadow: 0 5px 20px rgba(67, 97, 238, 0.3);
         }
 
-        /* CTA Button */
         .cta-button {
             display: inline-flex;
             align-items: center;
@@ -366,7 +355,6 @@
             box-shadow: 0 15px 40px rgba(67, 97, 238, 0.5);
         }
 
-        /* Stats Section - Mobile Optimized */
         .stats-section {
             display: flex;
             flex-wrap: wrap;
@@ -408,7 +396,6 @@
             letter-spacing: 1px;
         }
 
-        /* Features Section - Mobile Optimized */
         .features-section {
             padding: 60px 0;
             width: 100%;
@@ -462,7 +449,6 @@
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
         }
 
-        /* BEHOBEN: Feature Icons und Kreise - Euro Icon geändert */
         .feature-icon {
             font-size: clamp(2rem, 4vw, 2.5rem);
             color: #4cc9f0;
@@ -500,7 +486,6 @@
             font-size: clamp(1rem, 1.5vw, 1.1rem);
         }
 
-        /* Pricing Section - Mobile Optimized */
         .pricing-section {
             padding: 80px 0;
             width: 100%;
@@ -510,7 +495,6 @@
             margin-bottom: 60px;
         }
 
-        /* BEHOBEN: Pricing Cards Breite */
         .pricing-cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -652,7 +636,6 @@
             box-shadow: 0 10px 25px rgba(67, 97, 238, 0.3);
         }
 
-        /* Partner Section */
         .partner-section {
             padding: 80px 0;
             width: 100%;
@@ -742,7 +725,6 @@
             color: white;
         }
 
-        /* Honest Pricing Note */
         .honest-note {
             text-align: center;
             margin-top: 40px;
@@ -757,7 +739,6 @@
             border: 1px solid rgba(76, 201, 240, 0.1);
         }
 
-        /* Footer - Abgerundet und schöner */
         .footer {
             text-align: center;
             padding: 50px 20px;
@@ -817,7 +798,6 @@
             margin: 0 auto;
         }
 
-        /* NEU ANIMATIONS for Loading Screen - Kürzere Dauer */
         @keyframes floatParticle {
             0%, 100% {
                 transform: translateY(0) translateX(0);
@@ -910,7 +890,6 @@
             }
         }
 
-        /* Responsive Navigation */
         @media (max-width: 768px) {
             .navbar {
                 padding: 15px 20px;
@@ -950,7 +929,6 @@
             }
         }
 
-        /* Mobile Menu Toggle */
         .mobile-menu-toggle {
             display: none;
             flex-direction: column;
@@ -1007,7 +985,6 @@
             }
         }
 
-        /* Very Small Screens */
         @media (max-width: 480px) {
             .hero-section {
                 padding: 40px 0 30px 0;
@@ -1074,30 +1051,24 @@
     </style>
 </head>
 <body>
-    <!-- ENHANCED Loading Screen - Nur 0.2 Sekunden -->
     <div id="loading-screen">
         <div class="loading-container">
-            <!-- Floating particles -->
             <div class="particle"></div>
             <div class="particle"></div>
             <div class="particle"></div>
             <div class="particle"></div>
             <div class="particle"></div>
             
-            <!-- Animated gradient border -->
             <div class="loading-border"></div>
             
-            <!-- Main loading content -->
             <div class="loading-content">
                 <h1 class="loading-title">GRAVIJET</h1>
                 <p class="loading-subtitle">Loading...</p>
                 
-                <!-- Progress bar -->
                 <div class="progress-container">
                     <div class="progress-bar"></div>
                 </div>
                 
-                <!-- Loading dots -->
                 <div class="loading-dots">
                     <div class="dot"></div>
                     <div class="dot"></div>
@@ -1107,7 +1078,6 @@
         </div>
     </div>
 
-    <!-- Navigation -->
     <nav class="navbar">
         <a href="#" class="logo">GraviJet</a>
         
@@ -1127,9 +1097,7 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <div id="main-content">
-        <!-- Hero Section -->
         <section class="hero-section" id="home">
             <div class="discount-badge">
                 <i class="fas fa-tag"></i> 10% Off with Code: 2025
@@ -1142,7 +1110,6 @@
                 Get Started - First Server FREE
             </a>
             
-            <!-- Stats -->
             <div class="stats-section">
                 <div class="stat">
                     <div class="stat-value">99.9%</div>
@@ -1159,7 +1126,6 @@
             </div>
         </section>
 
-        <!-- Features Section -->
         <section class="features-section" id="features">
             <h2 class="section-title">Why Choose GraviJet?</h2>
             <div class="features-grid">
@@ -1180,22 +1146,18 @@
                 </div>
                 
                 <div class="feature-card">
-                    <!-- Geändert von fa-euro-sign zu fa-money-bill-wave -->
                     <div class="feature-icon">
                         <i class="fas fa-money-bill-wave"></i>
                     </div>
                     <h3 class="feature-title">Incredible Value</h3>
-                    <!-- Text aktualisiert für 7 Server -->
                     <p class="feature-description">Start with 1 free AFK server forever. Need more? Add additional servers for just 0.99€ each per month. 7 servers total for only 4.46€/month.</p>
                 </div>
             </div>
         </section>
 
-        <!-- Pricing Section - In der ursprünglichen Reihenfolge -->
         <section class="pricing-section" id="pricing">
             <h2 class="section-title">Simple, Transparent Pricing</h2>
             <div class="pricing-cards">
-                <!-- Free Tier - Ganz links -->
                 <div class="pricing-card">
                     <h3 class="pricing-title">Free Tier</h3>
                     <div class="pricing-price">0€</div>
@@ -1209,7 +1171,6 @@
                     <a href="https://dash.gravijet.net/" target="_blank" class="pricing-button">Get Started Free</a>
                 </div>
                 
-                <!-- Extra Server - In der Mitte -->
                 <div class="pricing-card">
                     <h3 class="pricing-title">Extra Account</h3>
                     <div class="pricing-price">0.99€</div>
@@ -1223,7 +1184,6 @@
                     <a href="https://dash.gravijet.net/" target="_blank" class="pricing-button">Add Extra Account</a>
                 </div>
                 
-                <!-- Best Value - Ganz rechts - Auf 7 Server aktualisiert -->
                 <div class="pricing-card popular">
                     <div class="popular-badge">Best Value - 25% Off</div>
                     <h3 class="pricing-title">7 Accounts Total</h3>
@@ -1246,7 +1206,6 @@
             </div>
         </section>
 
-        <!-- Partner Section -->
         <section class="partner-section">
             <h2 class="section-title">Our Partner</h2>
             <div class="partner-card">
@@ -1264,7 +1223,6 @@
             </div>
         </section>
         
-        <!-- Footer - Abgerundet und schöner -->
         <footer class="footer">
             <div class="footer-links">
                 <a href="#home" class="footer-link">Home</a>
@@ -1277,30 +1235,25 @@
     </div>
 
     <script>
-        // Loading Screen - Nur 0.2 Sekunden
         setTimeout(() => {
             const loadingScreen = document.getElementById('loading-screen');
             const mainContent = document.getElementById('main-content');
             
-            // Add exit animation to loading screen
             loadingScreen.style.transition = 'opacity 0.1s ease, transform 0.1s ease';
             loadingScreen.style.opacity = '0';
             loadingScreen.style.transform = 'scale(0.9)';
             
-            // Show main content
             setTimeout(() => {
                 loadingScreen.style.display = 'none';
                 mainContent.style.opacity = '1';
                 
-                // Add a subtle entrance animation for main content
                 mainContent.style.animation = 'none';
                 setTimeout(() => {
                     mainContent.style.animation = 'fadeInUp 0.8s ease forwards';
                 }, 10);
             }, 100);
-        }, 200); // Nur 0.2 Sekunden (200ms)
+        }, 200);
 
-        // Mobile Menu Toggle
         const mobileMenuToggle = document.getElementById('mobileMenuToggle');
         const navbar = document.querySelector('.navbar');
         
@@ -1310,7 +1263,6 @@
                 navbar.classList.toggle('active');
             });
             
-            // Close menu when clicking on a link
             document.querySelectorAll('.nav-link, .dashboard-nav-btn').forEach(link => {
                 link.addEventListener('click', () => {
                     mobileMenuToggle.classList.remove('active');
@@ -1318,7 +1270,6 @@
                 });
             });
             
-            // Close menu when clicking outside
             document.addEventListener('click', (e) => {
                 if (!mobileMenuToggle.contains(e.target) && !navbar.contains(e.target)) {
                     mobileMenuToggle.classList.remove('active');
@@ -1327,7 +1278,6 @@
             });
         }
         
-        // Smooth scroll for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -1337,7 +1287,6 @@
                 
                 const targetElement = document.querySelector(targetId);
                 if (targetElement) {
-                    // Close mobile menu if open
                     if (mobileMenuToggle && navbar) {
                         mobileMenuToggle.classList.remove('active');
                         navbar.classList.remove('active');
@@ -1351,7 +1300,6 @@
             });
         });
         
-        // Button hover effects
         document.querySelectorAll('.cta-button, .dashboard-nav-btn, .pricing-button, .partner-button').forEach(button => {
             button.addEventListener('mouseenter', function() {
                 this.style.transform = 'translateY(-5px)';
@@ -1361,7 +1309,6 @@
                 this.style.transform = 'translateY(0)';
             });
             
-            // Touch feedback for mobile
             button.addEventListener('touchstart', function() {
                 this.style.transform = 'translateY(-2px)';
             });
@@ -1371,7 +1318,6 @@
             });
         });
         
-        // Add background animation
         function createBackgroundAnimation() {
             const style = document.createElement('style');
             style.textContent = `
@@ -1417,7 +1363,6 @@
         
         createBackgroundAnimation();
         
-        // Add scroll animations
         const observerOptions = {
             threshold: 0.1,
             rootMargin: '0px 0px -50px 0px'
@@ -1432,12 +1377,10 @@
             });
         }, observerOptions);
         
-        // Observe elements for animation
         document.querySelectorAll('.feature-card, .pricing-card, .partner-card').forEach(card => {
             observer.observe(card);
         });
         
-        // Additional loading screen particle effect
         function createParticles() {
             const loadingContainer = document.querySelector('.loading-container');
             if (!loadingContainer) return;
