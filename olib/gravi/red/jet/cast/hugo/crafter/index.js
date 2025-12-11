@@ -10,14 +10,13 @@ if (!fs.existsSync(AUTH_CACHE_DIR)) {
 let bot = null;
 let reconnectTimeout = null;
 let jumpInterval = null;
-let isShuttingDown = false; // Flag um doppelte Shutdowns zu verhindern
+let isShuttingDown = false;
 
-// Einstellungen aus Umgebungsvariablen
 const JUMP_INTERVAL = (parseInt(process.env.JUMP_INTERVAL) || 60) * 1000;
-const ENABLE_JUMP = (process.env.ENABLE_JUMP || '1') === '1'; // 0 = aus, 1 = ein (Standard)
+const ENABLE_JUMP = (process.env.ENABLE_JUMP || '1') === '1';
 const SERVER_IP = process.env.IP || 'gravijet.net:25565';
 const VERSION = process.env.VERSION || '1.21.8';
-const CHAT_COLOR = (process.env.CHAT_COLOR || '1') === '1'; // 0 = aus, 1 = ein (Standard)
+const CHAT_COLOR = (process.env.CHAT_COLOR || '1') === '1';
 
 console.log(`[Config] Server: ${SERVER_IP}`);
 console.log(`[Config] Version: ${VERSION}`);
@@ -102,26 +101,21 @@ function createBot() {
             }
         });
 
-        // Chat-Handler mit Farboption
         bot.on('message', (message) => {
             try {
                 let displayText;
                 
                 if (CHAT_COLOR) {
-                    // Versuche mit toAnsi() für Farben
                     try {
                         if (typeof message.toAnsi === 'function') {
                             displayText = message.toAnsi();
                         } else {
-                            // Fallback: toString() mit Farbcodes (wenn sie bereits als ANSI konvertiert sind)
                             displayText = message.toString();
                         }
                     } catch (ansiError) {
-                        // Falls toAnsi() fehlschlägt, ohne Farben
                         displayText = message.toString().replace(/§[0-9a-fk-or]/g, '');
                     }
                 } else {
-                    // Ohne Farbcodes
                     displayText = message.toString().replace(/§[0-9a-fk-or]/g, '');
                 }
                 
@@ -130,19 +124,15 @@ function createBot() {
                     console.log(`[System] ${cleanText}`);
                 }
             } catch (error) {
-                // Fallback: Ohne Farbcodes
                 try {
                     const text = message.toString().replace(/§[0-9a-fk-or]/g, '').trim();
                     if (text && text !== '') {
                         console.log(`[System] ${text}`);
                     }
-                } catch (e) {
-                    // Ignoriere Fehler
-                }
+                } catch (e) {}
             }
         });
 
-        // Chat aus Konsole senden MIT FILTER und Shutdown-Kommando
         process.stdin.on('data', (data) => {
             const msg = data.toString().trim();
 
@@ -168,32 +158,27 @@ function createBot() {
             }
         });
 
-        // Korrigierter Death-Handler (ohne removeAllListeners)
         bot.on('death', () => {
             console.log('[Bot] Died, respawning in 1 second...');
             setTimeout(() => {
                 if (bot && bot._client && bot._client.ended === false) {
                     try {
-                        // Einfaches Respawn ohne removeAllListeners
                         bot.respawn();
                         console.log('[Bot] Respawned');
                     } catch (e) {
                         console.log('[Error] Failed to respawn:', e.message);
-                        // Bei Fehler neu verbinden
                         setTimeout(createBot, 5000);
                     }
                 }
             }, 1000);
         });
 
-        // Fehlerbehandlung & Reconnect
         bot.on('kicked', (reason) => {
             console.log(`[Kicked] ${reason}`);
             setTimeout(createBot, 10000);
         });
 
         bot.on('error', (err) => {
-            // Ignoriere Profil-Daten-Fehler (spammt sonst)
             if (err.message.includes('Failed to obtain profile data') || 
                 err.message.includes('does the account own minecraft')) {
                 console.log('[Error] Authentication issue, reconnecting in 30s...');
@@ -215,9 +200,8 @@ function createBot() {
     }
 }
 
-// Shutdown & Exit-Handler 
 function shutdown() {
-    if (isShuttingDown) return; // Verhindere mehrfache Ausführung
+    if (isShuttingDown) return; 
     
     isShuttingDown = true;
     console.log('[Info] Shutting down...');
@@ -234,7 +218,6 @@ function shutdown() {
         bot = null;
     }
     
-    // stdin blockiert Node manchmal: Listener & Input beenden
     process.stdin.removeAllListeners('data');
     try { 
         process.stdin.pause(); 
@@ -244,7 +227,6 @@ function shutdown() {
         process.stdin.destroy && process.stdin.destroy(); 
     } catch (e) {}
     
-    // Sofort beenden ohne Verzögerung
     process.exit(0);
 }
 
