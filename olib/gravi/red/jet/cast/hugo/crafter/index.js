@@ -11,6 +11,7 @@ let bot = null;
 let reconnectTimeout = null;
 let jumpInterval = null;
 let isShuttingDown = false;
+let stdinListenerAdded = false;
 
 const JUMP_INTERVAL = (parseInt(process.env.JUMP_INTERVAL) || 60) * 1000;
 const ENABLE_JUMP = (process.env.ENABLE_JUMP || '1') === '1';
@@ -40,6 +41,39 @@ function isMessageSafe(message) {
         return false;
     }
     return true;
+}
+
+// Setup stdin listener ONCE, outside of createBot
+function setupStdinListener() {
+    if (stdinListenerAdded) return;
+    
+    process.stdin.on('data', (data) => {
+        const msg = data.toString().trim();
+
+        if (msg === '\\stopafkclient') {
+            if (!isShuttingDown) {
+                shutdown();
+            }
+            return;
+        }
+
+        if (!isMessageSafe(msg)) {
+            console.log('[Blocked] Message not sent - contains forbidden characters or is invalid');
+            return;
+        }
+
+        if (msg && bot && bot.chat) {
+            try {
+                bot.chat(msg);
+                console.log(`[You] ${msg}`);
+            } catch (error) {
+                console.log('[Error] Could not send message:', error.message);
+            }
+        }
+    });
+    
+    stdinListenerAdded = true;
+    console.log('[Info] Input listener initialized');
 }
 
 function createBot() {
@@ -133,52 +167,35 @@ function createBot() {
             }
         });
 
-        process.stdin.on('data', (data) => {
-            const msg = data.toString().trim();
-
-            if (msg === '\\stopafkclient') {
-                if (!isShuttingDown) {
-                    shutdown();
-                }
-                return;
-            }
-
-            if (!isMessageSafe(msg)) {
-                console.log('[Blocked] Message not sent - contains forbidden characters or is invalid');
-                return;
-            }
-
-            if (msg && bot && bot.chat) {
-                try {
-                    bot.chat(msg);
-                    console.log(`[You] ${msg}`);
-                } catch (error) {
-                    console.log('[Error] Could not send message:', error.message);
-                }
-            }
-        });
-
         bot.on('death', () => {
-            console.log('[Bot] Died, respawning in 1 second...');
+            console.log('[Bot] Died, respawning...');
             setTimeout(() => {
-                if (bot && bot._client && bot._client.ended === false) {
-                    try {
+                try {
+                    if (bot && bot._client && !bot._client.ended) {
                         bot.respawn();
-                        console.log('[Bot] Respawned');
-                    } catch (e) {
-                        console.log('[Error] Failed to respawn:', e.message);
-                        setTimeout(createBot, 5000);
+                        console.log('[Bot] Respawned successfully');
+                    } else {
+                        console.log('[Bot] Cannot respawn - connection lost, reconnecting...');
+                        createBot();
                     }
+                } catch (e) {
+                    console.log('[Error] Failed to respawn:', e.message);
+                    console.log('[Bot] Reconnecting...');
+                    setTimeout(createBot, 3000);
                 }
             }, 1000);
         });
 
         bot.on('kicked', (reason) => {
             console.log(`[Kicked] ${reason}`);
-            setTimeout(createBot, 10000);
+            if (!isShuttingDown) {
+                setTimeout(createBot, 10000);
+            }
         });
 
         bot.on('error', (err) => {
+            if (isShuttingDown) return;
+            
             if (err.message.includes('Failed to obtain profile data') || 
                 err.message.includes('does the account own minecraft')) {
                 console.log('[Error] Authentication issue, reconnecting in 30s...');
@@ -190,13 +207,16 @@ function createBot() {
         });
 
         bot.on('end', () => {
+            if (isShuttingDown) return;
             console.log('[Info] Disconnected, reconnecting in 10s...');
             setTimeout(createBot, 10000);
         });
 
     } catch (error) {
         console.log(`[Error] Failed to create bot: ${error.message}`);
-        setTimeout(createBot, 10000);
+        if (!isShuttingDown) {
+            setTimeout(createBot, 10000);
+        }
     }
 }
 
@@ -227,14 +247,19 @@ function shutdown() {
         process.stdin.destroy && process.stdin.destroy(); 
     } catch (e) {}
     
-    process.exit(0);
+    setTimeout(() => {
+        process.exit(0);
+    }, 1000);
 }
 
+// Setup stdin first
 if (typeof process.stdin.setRawMode === 'function') {
     try { 
         process.stdin.setRawMode(true); 
     } catch { }
 }
 process.stdin.resume();
+setupStdinListener();
 
+// Then create bot
 createBot();
