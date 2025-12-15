@@ -1,6 +1,7 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 
 const AUTH_CACHE_DIR = path.join(__dirname, '.auth_cache');
 if (!fs.existsSync(AUTH_CACHE_DIR)) {
@@ -8,258 +9,252 @@ if (!fs.existsSync(AUTH_CACHE_DIR)) {
 }
 
 let bot = null;
-let reconnectTimeout = null;
-let jumpInterval = null;
 let isShuttingDown = false;
-let stdinListenerAdded = false;
+let isConnected = false;
+let currentVersion = null;
 
 const JUMP_INTERVAL = (parseInt(process.env.JUMP_INTERVAL) || 60) * 1000;
 const ENABLE_JUMP = (process.env.ENABLE_JUMP || '1') === '1';
-const SERVER_IP = process.env.IP || 'gravijet.net:25565';
-const VERSION = process.env.VERSION || '1.21.8';
-const CHAT_COLOR = (process.env.CHAT_COLOR || '1') === '1';
+const SERVER_IP = process.env.IP || 'blockbande.net:25565';
 
-console.log(`[Config] Server: ${SERVER_IP}`);
-console.log(`[Config] Version: ${VERSION}`);
-console.log(`[Config] Jump enabled: ${ENABLE_JUMP}, Jump interval: ${JUMP_INTERVAL/1000}s`);
-console.log(`[Config] Chat color enabled: ${CHAT_COLOR}`);
+// Try these versions in order if one fails
+const VERSIONS_TO_TRY = [
+    '1.21.4',
+    '1.21.3', 
+    '1.21.1',
+    '1.21',
+    '1.20.6',
+    '1.20.4',
+    '1.20.2',
+    '1.20.1'
+];
 
-const FORBIDDEN_CHARS = ['$'];
-function isMessageSafe(message) {
-    if (!message || typeof message !== 'string') return false;
-    for (const char of FORBIDDEN_CHARS) {
-        if (message.includes(char)) {
-            console.log(`[Blocked] Message contains forbidden character: ${char}`);
-            return false;
-        }
-    }
-    if (message.length > 256) {
-        console.log('[Blocked] Message too long');
-        return false;
-    }
-    if (message.trim().length === 0) {
-        return false;
-    }
-    return true;
-}
+console.log('='.repeat(60));
+console.log('Minecraft AFK Bot - Auto Version Detection');
+console.log('='.repeat(60));
+console.log(`Server: ${SERVER_IP}`);
+console.log(`Will try versions: ${VERSIONS_TO_TRY.join(', ')}`);
+console.log('='.repeat(60));
+console.log('\nIMPORTANT: If you see PartialReadError, updating dependencies:');
+console.log('  npm install mineflayer@latest minecraft-protocol@latest\n');
 
-// Setup stdin listener ONCE, outside of createBot
-function setupStdinListener() {
-    if (stdinListenerAdded) return;
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+rl.on('line', (input) => {
+    if (input.trim() === '\\stop') {
+        console.log('Stopping...');
+        if (bot) bot.quit();
+        rl.close();
+        process.exit(0);
+        return;
+    }
     
-    process.stdin.on('data', (data) => {
-        const msg = data.toString().trim();
-
-        if (msg === '\\stopafkclient') {
-            if (!isShuttingDown) {
-                shutdown();
-            }
-            return;
+    if (bot && isConnected) {
+        try {
+            bot.chat(input);
+            console.log(`> ${input}`);
+        } catch (e) {
+            console.log(`FAILED: ${e.message}`);
         }
+    } else {
+        console.log('Not connected yet');
+    }
+});
 
-        if (!isMessageSafe(msg)) {
-            console.log('[Blocked] Message not sent - contains forbidden characters or is invalid');
-            return;
-        }
-
-        if (msg && bot && bot.chat) {
-            try {
-                bot.chat(msg);
-                console.log(`[You] ${msg}`);
-            } catch (error) {
-                console.log('[Error] Could not send message:', error.message);
-            }
-        }
-    });
-    
-    stdinListenerAdded = true;
-    console.log('[Info] Input listener initialized');
-}
+let versionIndex = 0;
+let connectionAttempts = 0;
 
 function createBot() {
-    if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-        reconnectTimeout = null;
+    if (isShuttingDown) return;
+    
+    // If we've tried all versions, start over with longer delay
+    if (versionIndex >= VERSIONS_TO_TRY.length) {
+        connectionAttempts++;
+        if (connectionAttempts > 3) {
+            console.log('\n' + '='.repeat(60));
+            console.log('ERROR: Could not connect with any version!');
+            console.log('This usually means:');
+            console.log('1. Your mineflayer/minecraft-protocol is outdated');
+            console.log('2. The server requires a specific protocol version');
+            console.log('\nTry running:');
+            console.log('  npm install mineflayer@latest minecraft-protocol@latest');
+            console.log('='.repeat(60));
+            process.exit(1);
+        }
+        versionIndex = 0;
+        console.log('\nRetrying all versions again...\n');
+        setTimeout(() => createBot(), 10000);
+        return;
     }
-    if (jumpInterval) {
-        clearInterval(jumpInterval);
-        jumpInterval = null;
-    }
-
+    
+    const version = process.env.VERSION || VERSIONS_TO_TRY[versionIndex];
+    currentVersion = version;
+    
     const [host, port] = SERVER_IP.includes(':') ? SERVER_IP.split(':') : [SERVER_IP, '25565'];
-
-    console.log(`[Bot] Connecting to ${host}:${port} with version ${VERSION}...`);
-
+    
+    console.log(`\n[${new Date().toLocaleTimeString()}] Trying version ${version}...`);
+    
     try {
         bot = mineflayer.createBot({
             host: host,
             port: parseInt(port),
-            version: VERSION,
+            version: version,
             auth: 'microsoft',
             profilesFolder: AUTH_CACHE_DIR,
             viewDistance: 'tiny',
-            chatLengthLimit: 256,
-            colorsEnabled: false,
             skipValidation: true,
-            hideErrors: true
+            hideErrors: true,
+            checkTimeoutInterval: 120000
         });
 
-        let hasShownLoginMessage = false;
+        let hasError = false;
+        let errorTimeout = null;
+
+        // Detect critical errors early
+        bot._client.on('error', (err) => {
+            const msg = err.message || '';
+            
+            // Ignore non-critical parse errors
+            if (msg.includes('Parse error') && !msg.includes('PartialReadError')) {
+                return;
+            }
+            
+            // PartialReadError = wrong version
+            if (msg.includes('PartialReadError') || msg.includes('Read error')) {
+                if (!hasError) {
+                    hasError = true;
+                    console.log(`  ✗ Version ${version} - Protocol error (wrong version)`);
+                    
+                    // Cleanup and try next version
+                    try {
+                        bot.quit();
+                    } catch (e) {}
+                    
+                    bot = null;
+                    isConnected = false;
+                    versionIndex++;
+                    
+                    // Quick retry with next version
+                    setTimeout(() => createBot(), 2000);
+                }
+                return;
+            }
+        });
 
         bot.on('login', () => {
-            if (!hasShownLoginMessage) {
-                console.log(`[Bot] Connected to ${SERVER_IP} with ${VERSION} as ${bot.username}.`);
-                hasShownLoginMessage = true;
-            }
+            if (hasError) return;
+            console.log(`  ✓ Version ${version} - Login successful!`);
         });
 
         bot.on('spawn', () => {
-            if (!hasShownLoginMessage) {
-                console.log(`[Bot] Connected to ${SERVER_IP} with ${VERSION} as ${bot.username}.`);
-                hasShownLoginMessage = true;
-            }
-
+            if (hasError) return;
+            isConnected = true;
+            versionIndex = 0; // Reset for next disconnect
+            connectionAttempts = 0;
+            
+            console.log(`  ✓ Connected as ${bot.username}`);
+            console.log('\n' + '='.repeat(60));
+            console.log('READY - Type messages and press Enter');
+            console.log('Type \\stop to quit');
+            console.log('='.repeat(60) + '\n');
+            
+            // Anti-AFK
             if (ENABLE_JUMP) {
-                jumpInterval = setInterval(() => {
-                    if (bot && bot.entity) {
-                        bot.setControlState('jump', true);
-                        setTimeout(() => {
-                            if (bot) bot.setControlState('jump', false);
-                        }, 500);
-                        console.log('[Anti-AFK] Jumped');
+                setInterval(() => {
+                    if (bot && bot.entity && isConnected) {
+                        try {
+                            bot.setControlState('jump', true);
+                            setTimeout(() => {
+                                if (bot) bot.setControlState('jump', false);
+                            }, 500);
+                        } catch (e) {}
                     }
                 }, JUMP_INTERVAL);
-                console.log(`[Anti-AFK] Jumping enabled with ${JUMP_INTERVAL/1000}s interval.`);
-            } else {
-                console.log('[Anti-AFK] Jumping disabled');
             }
         });
 
         bot.on('message', (message) => {
+            if (!isConnected || hasError) return;
             try {
-                let displayText;
-                
-                if (CHAT_COLOR) {
-                    try {
-                        if (typeof message.toAnsi === 'function') {
-                            displayText = message.toAnsi();
-                        } else {
-                            displayText = message.toString();
-                        }
-                    } catch (ansiError) {
-                        displayText = message.toString().replace(/§[0-9a-fk-or]/g, '');
-                    }
-                } else {
-                    displayText = message.toString().replace(/§[0-9a-fk-or]/g, '');
-                }
-                
-                const cleanText = displayText.trim();
-                if (cleanText && cleanText !== '') {
-                    console.log(`[System] ${cleanText}`);
-                }
-            } catch (error) {
-                try {
-                    const text = message.toString().replace(/§[0-9a-fk-or]/g, '').trim();
-                    if (text && text !== '') {
-                        console.log(`[System] ${text}`);
-                    }
-                } catch (e) {}
-            }
-        });
-
-        bot.on('death', () => {
-            console.log('[Bot] Died, respawning...');
-            setTimeout(() => {
-                try {
-                    if (bot && bot._client && !bot._client.ended) {
-                        bot.respawn();
-                        console.log('[Bot] Respawned successfully');
-                    } else {
-                        console.log('[Bot] Cannot respawn - connection lost, reconnecting...');
-                        createBot();
-                    }
-                } catch (e) {
-                    console.log('[Error] Failed to respawn:', e.message);
-                    console.log('[Bot] Reconnecting...');
-                    setTimeout(createBot, 3000);
-                }
-            }, 1000);
+                const text = message.toString().replace(/§[0-9a-fk-or]/g, '').trim();
+                if (text) console.log(text);
+            } catch (e) {}
         });
 
         bot.on('kicked', (reason) => {
-            console.log(`[Kicked] ${reason}`);
-            if (!isShuttingDown) {
-                setTimeout(createBot, 10000);
-            }
+            if (hasError) return;
+            isConnected = false;
+            
+            let text = '';
+            try {
+                if (typeof reason === 'object' && reason.value && reason.value.text && reason.value.text.value) {
+                    text = reason.value.text.value;
+                } else {
+                    text = typeof reason === 'string' ? reason : JSON.stringify(reason);
+                }
+            } catch (e) { text = 'Unknown'; }
+            
+            console.log(`\nKicked: ${text}`);
+            console.log('Reconnecting in 5s...');
+            
+            bot = null;
+            setTimeout(() => createBot(), 5000);
         });
 
         bot.on('error', (err) => {
-            if (isShuttingDown) return;
+            if (hasError || isShuttingDown) return;
             
-            if (err.message.includes('Failed to obtain profile data') || 
-                err.message.includes('does the account own minecraft')) {
-                console.log('[Error] Authentication issue, reconnecting in 30s...');
-                setTimeout(createBot, 30000);
-            } else {
-                console.log(`[Error] ${err.message}`);
-                setTimeout(createBot, 10000);
+            const msg = err.message || '';
+            
+            // Ignore parse errors
+            if (msg.includes('Parse error') && !msg.includes('PartialReadError')) {
+                return;
             }
+            
+            // Protocol errors = try next version
+            if (msg.includes('PartialReadError') || msg.includes('Read error')) {
+                if (!hasError) {
+                    hasError = true;
+                    console.log(`  ✗ Version ${version} - Protocol mismatch`);
+                    versionIndex++;
+                    setTimeout(() => createBot(), 2000);
+                }
+                return;
+            }
+            
+            console.log(`Error: ${msg}`);
         });
 
         bot.on('end', () => {
-            if (isShuttingDown) return;
-            console.log('[Info] Disconnected, reconnecting in 10s...');
-            setTimeout(createBot, 10000);
+            if (hasError || isShuttingDown) return;
+            isConnected = false;
+            console.log('\nDisconnected - reconnecting in 5s...');
+            bot = null;
+            setTimeout(() => createBot(), 5000);
         });
+        
+        // Timeout if no connection after 15 seconds
+        errorTimeout = setTimeout(() => {
+            if (!isConnected && !hasError) {
+                hasError = true;
+                console.log(`  ✗ Version ${version} - Timeout`);
+                try {
+                    bot.quit();
+                } catch (e) {}
+                bot = null;
+                versionIndex++;
+                createBot();
+            }
+        }, 15000);
 
     } catch (error) {
-        console.log(`[Error] Failed to create bot: ${error.message}`);
-        if (!isShuttingDown) {
-            setTimeout(createBot, 10000);
-        }
+        console.log(`Failed to create bot: ${error.message}`);
+        versionIndex++;
+        setTimeout(() => createBot(), 2000);
     }
 }
 
-function shutdown() {
-    if (isShuttingDown) return; 
-    
-    isShuttingDown = true;
-    console.log('[Info] Shutting down...');
-    
-    if (jumpInterval) {
-        clearInterval(jumpInterval);
-        jumpInterval = null;
-    }
-    
-    if (bot) {
-        try { 
-            bot.quit('Shutting down'); 
-        } catch (e) {}
-        bot = null;
-    }
-    
-    process.stdin.removeAllListeners('data');
-    try { 
-        process.stdin.pause(); 
-    } catch (e) {}
-    
-    try { 
-        process.stdin.destroy && process.stdin.destroy(); 
-    } catch (e) {}
-    
-    setTimeout(() => {
-        process.exit(0);
-    }, 1000);
-}
-
-// Setup stdin first
-if (typeof process.stdin.setRawMode === 'function') {
-    try { 
-        process.stdin.setRawMode(true); 
-    } catch { }
-}
-process.stdin.resume();
-setupStdinListener();
-
-// Then create bot
 createBot();
