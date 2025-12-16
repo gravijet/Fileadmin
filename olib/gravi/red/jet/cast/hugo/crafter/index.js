@@ -2,6 +2,8 @@ const mineflayer = require('mineflayer');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const https = require('https');
+const { URL } = require('url');
 
 const AUTH_CACHE_DIR = path.join(__dirname, '.auth_cache');
 if (!fs.existsSync(AUTH_CACHE_DIR)) {
@@ -12,31 +14,72 @@ let bot = null;
 let isShuttingDown = false;
 let isConnected = false;
 let currentVersion = null;
+let wasKicked = false; // Track if we were kicked to auto-teleport
 
 const JUMP_INTERVAL = (parseInt(process.env.JUMP_INTERVAL) || 60) * 1000;
-const ENABLE_JUMP = (process.env.ENABLE_JUMP || '1') === '1';
+const ENABLE_JUMP = (process.env.ENABLE_JUMP || '0') === '1';
 const SERVER_IP = process.env.IP || 'blockbande.net:25565';
+const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || 'https://discord.com/api/webhooks/1450362713594138624/7DDmD3ng2z-jViSPhbyc1BnyVBUkEp1DdKEGQDptHFdj-woxWHKqbTuezAekar3D-BMe';
+const AUTO_TELEPORT_COMMAND = process.env.AUTO_TELEPORT || '/plot home gravijet 1';
+const TELEPORT_DELAY = parseInt(process.env.TELEPORT_DELAY) || 7000; // 7 seconds
 
 // Try these versions in order if one fails
-const VERSIONS_TO_TRY = [
-    '1.21.4',
-    '1.21.3', 
-    '1.21.1',
-    '1.21',
-    '1.20.6',
-    '1.20.4',
-    '1.20.2',
-    '1.20.1'
-];
+const VERSIONS_TO_TRY = ['1.21.4'];
 
 console.log('='.repeat(60));
-console.log('Minecraft AFK Bot - Auto Version Detection');
+console.log('Minecraft AFK Bot with Discord Integration');
 console.log('='.repeat(60));
 console.log(`Server: ${SERVER_IP}`);
+console.log(`Discord Webhook: ${DISCORD_WEBHOOK ? 'Enabled' : 'Disabled'}`);
+console.log(`Auto-Teleport: ${AUTO_TELEPORT_COMMAND} (after ${TELEPORT_DELAY/1000}s)`);
 console.log(`Will try versions: ${VERSIONS_TO_TRY.join(', ')}`);
-console.log('='.repeat(60));
-console.log('\nIMPORTANT: If you see PartialReadError, updating dependencies:');
-console.log('  npm install mineflayer@latest minecraft-protocol@latest\n');
+console.log('='.repeat(60) + '\n');
+
+// Discord webhook function
+function sendToDiscord(message) {
+    if (!DISCORD_WEBHOOK || !message || message.trim() === '') return;
+    
+    try {
+        const webhookUrl = new URL(DISCORD_WEBHOOK);
+        
+        const payload = JSON.stringify({
+            content: message,
+            username: 'Minecraft Bot'
+        });
+        
+        const options = {
+            hostname: webhookUrl.hostname,
+            path: webhookUrl.pathname + webhookUrl.search,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(payload)
+            }
+        };
+        
+        const req = https.request(options, (res) => {
+            // Silent handling
+            if (res.statusCode !== 204) {
+                // Only log if error
+                res.on('data', (d) => {
+                    if (res.statusCode >= 400) {
+                        console.log(`[Discord Error] ${res.statusCode}: ${d.toString()}`);
+                    }
+                });
+            }
+        });
+        
+        req.on('error', (error) => {
+            console.log(`[Discord Error] ${error.message}`);
+        });
+        
+        req.write(payload);
+        req.end();
+        
+    } catch (error) {
+        console.log(`[Discord Error] ${error.message}`);
+    }
+}
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -112,6 +155,7 @@ function createBot() {
 
         let hasError = false;
         let errorTimeout = null;
+        let hasTeleported = false;
 
         // Detect critical errors early
         bot._client.on('error', (err) => {
@@ -161,6 +205,29 @@ function createBot() {
             console.log('Type \\stop to quit');
             console.log('='.repeat(60) + '\n');
             
+            // Send connection notification to Discord
+            sendToDiscord(`✅ **${bot.username}** connected to server`);
+            
+            // Auto-teleport if we were kicked
+            if (wasKicked && AUTO_TELEPORT_COMMAND && !hasTeleported) {
+                hasTeleported = true;
+                wasKicked = false;
+                
+                console.log(`[Auto-Teleport] Executing "${AUTO_TELEPORT_COMMAND}" in ${TELEPORT_DELAY/1000}s...`);
+                
+                setTimeout(() => {
+                    if (bot && isConnected) {
+                        try {
+                            bot.chat(AUTO_TELEPORT_COMMAND);
+                            console.log(`[Auto-Teleport] ✓ Executed: ${AUTO_TELEPORT_COMMAND}`);
+                            sendToDiscord(`🏠 Auto-teleported: \`${AUTO_TELEPORT_COMMAND}\``);
+                        } catch (e) {
+                            console.log(`[Auto-Teleport] ✗ Failed: ${e.message}`);
+                        }
+                    }
+                }, TELEPORT_DELAY);
+            }
+            
             // Anti-AFK
             if (ENABLE_JUMP) {
                 setInterval(() => {
@@ -180,13 +247,20 @@ function createBot() {
             if (!isConnected || hasError) return;
             try {
                 const text = message.toString().replace(/§[0-9a-fk-or]/g, '').trim();
-                if (text) console.log(text);
+                if (text) {
+                    console.log(text);
+                    
+                    // Send to Discord (1:1 copy)
+                    sendToDiscord(text);
+                }
             } catch (e) {}
         });
 
         bot.on('kicked', (reason) => {
             if (hasError) return;
             isConnected = false;
+            wasKicked = true; // Mark that we were kicked for auto-teleport
+            hasTeleported = false; // Reset teleport flag
             
             let text = '';
             try {
@@ -199,6 +273,9 @@ function createBot() {
             
             console.log(`\nKicked: ${text}`);
             console.log('Reconnecting in 5s...');
+            
+            // Send kick notification to Discord
+            sendToDiscord(`⚠️ **Kicked:** ${text}`);
             
             bot = null;
             setTimeout(() => createBot(), 5000);
@@ -226,14 +303,30 @@ function createBot() {
             }
             
             console.log(`Error: ${msg}`);
+            sendToDiscord(`❌ **Error:** ${msg}`);
         });
 
         bot.on('end', () => {
             if (hasError || isShuttingDown) return;
             isConnected = false;
             console.log('\nDisconnected - reconnecting in 5s...');
+            sendToDiscord('🔴 **Disconnected** - reconnecting...');
             bot = null;
             setTimeout(() => createBot(), 5000);
+        });
+        
+        bot.on('death', () => {
+            console.log('[Death] Bot died');
+            sendToDiscord('💀 **Died**');
+            setTimeout(() => {
+                try {
+                    if (bot && bot._client && !bot._client.ended) {
+                        bot.respawn();
+                        console.log('[Death] Respawned');
+                        sendToDiscord('✅ **Respawned**');
+                    }
+                } catch (e) {}
+            }, 1000);
         });
         
         // Timeout if no connection after 15 seconds

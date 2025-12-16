@@ -1,0 +1,17 @@
+{
+  "name": "GraviJet AFK Client",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "bun index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "mineflayer": "^4.33.0",
+    "prismarine-auth": "^2.7.0"
+  }
+}
