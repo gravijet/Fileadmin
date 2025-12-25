@@ -1,353 +1,415 @@
-const mineflayer = require('mineflayer');
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
-const https = require('https');
-const { URL } = require('url');
+import mc from 'minecraft-protocol';
+import fs from 'fs';
+import readline from 'readline';
+import prismarineAuth from 'prismarine-auth';
+const { Authflow, Titles } = prismarineAuth;
 
-const AUTH_CACHE_DIR = path.join(__dirname, '.auth_cache');
-if (!fs.existsSync(AUTH_CACHE_DIR)) {
-    fs.mkdirSync(AUTH_CACHE_DIR, { recursive: true });
+// ===== KONFIGURATION =====
+const CONFIG_PATH = './config.json';
+let config = {
+    host: 'localhost',
+    port: 25565,
+    account: 'Bot',
+    version: '1.21.4'
+};
+
+// ===== STATE =====
+let client = null;
+let reconnectTimeout = null;
+let cachedAuth = null;
+let authFlow = null;
+let consoleInterface = null;
+
+// ===== KONFIGURATION LADEN =====
+function loadConfig() {
+    try {
+        if (fs.existsSync(CONFIG_PATH)) {
+            const data = fs.readFileSync(CONFIG_PATH, 'utf8');
+            config = { ...config, ...JSON.parse(data) };
+            console.log('[CONFIG] Geladen');
+        } else {
+            console.log('[CONFIG] config.json nicht gefunden, erstelle Beispiel');
+            fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+        }
+    } catch (error) {
+        console.error('[CONFIG] Fehler:', error.message);
+    }
 }
 
-let bot = null;
-let isShuttingDown = false;
-let isConnected = false;
-let currentVersion = null;
-let wasKicked = false; // Track if we were kicked to auto-teleport
-
-const JUMP_INTERVAL = (parseInt(process.env.JUMP_INTERVAL) || 60) * 1000;
-const ENABLE_JUMP = (process.env.ENABLE_JUMP || '0') === '1';
-const SERVER_IP = process.env.IP || 'blockbande.net:25565';
-const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || 'https://discord.com/api/webhooks/1450362713594138624/7DDmD3ng2z-jViSPhbyc1BnyVBUkEp1DdKEGQDptHFdj-woxWHKqbTuezAekar3D-BMe';
-const AUTO_TELEPORT_COMMAND = process.env.AUTO_TELEPORT || '/plot home gravijet 1';
-const TELEPORT_DELAY = parseInt(process.env.TELEPORT_DELAY) || 7000; // 7 seconds
-
-// Try these versions in order if one fails
-const VERSIONS_TO_TRY = ['1.21.4'];
-
-console.log('='.repeat(60));
-console.log('Minecraft AFK Bot with Discord Integration');
-console.log('='.repeat(60));
-console.log(`Server: ${SERVER_IP}`);
-console.log(`Discord Webhook: ${DISCORD_WEBHOOK ? 'Enabled' : 'Disabled'}`);
-console.log(`Auto-Teleport: ${AUTO_TELEPORT_COMMAND} (after ${TELEPORT_DELAY/1000}s)`);
-console.log(`Will try versions: ${VERSIONS_TO_TRY.join(', ')}`);
-console.log('='.repeat(60) + '\n');
-
-// Discord webhook function
-function sendToDiscord(message) {
-    if (!DISCORD_WEBHOOK || !message || message.trim() === '') return;
+// ===== MICROSOFT AUTHENTIFIZIERUNG =====
+async function getMicrosoftAuth() {
+    if (cachedAuth) {
+        console.log('[AUTH] Verwende gecachte Authentifizierung');
+        return cachedAuth;
+    }
+    
+    console.log('[AUTH] Starte Microsoft-Authentifizierung...');
     
     try {
-        const webhookUrl = new URL(DISCORD_WEBHOOK);
+        if (!authFlow) {
+            authFlow = new Authflow(config.account, './', {
+                authTitle: Titles.MinecraftJava,
+                deviceType: 'Win32',
+                flow: 'sisu',
+                onMsaCode: (data) => {
+                    console.log('\n→ ÖFFNE IM BROWSER:', data.verification_uri);
+                    console.log('→ CODE EINGEBEN:', data.user_code, '\n');
+                }
+            });
+        }
         
-        const payload = JSON.stringify({
-            content: message,
-            username: 'Minecraft Bot'
-        });
+        const auth = await authFlow.getMinecraftJavaToken({ fetchProfile: true });
         
-        const options = {
-            hostname: webhookUrl.hostname,
-            path: webhookUrl.pathname + webhookUrl.search,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(payload)
+        cachedAuth = {
+            accessToken: auth.token,
+            clientToken: auth.token,
+            selectedProfile: {
+                id: auth.profile.id,
+                name: auth.profile.name
             }
         };
         
-        const req = https.request(options, (res) => {
-            // Silent handling
-            if (res.statusCode !== 204) {
-                // Only log if error
-                res.on('data', (d) => {
-                    if (res.statusCode >= 400) {
-                        console.log(`[Discord Error] ${res.statusCode}: ${d.toString()}`);
-                    }
-                });
-            }
-        });
-        
-        req.on('error', (error) => {
-            console.log(`[Discord Error] ${error.message}`);
-        });
-        
-        req.write(payload);
-        req.end();
+        console.log(`[AUTH] Erfolg! Eingeloggt als: ${auth.profile.name}`);
+        return cachedAuth;
         
     } catch (error) {
-        console.log(`[Discord Error] ${error.message}`);
+        console.error('[AUTH] Fehler:', error.message);
+        process.exit(1);
     }
 }
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
+// ===== CONSOLE INPUT HANDLING =====
+function setupConsoleInput() {
+    if (consoleInterface) {
+        consoleInterface.close();
+    }
+    
+    consoleInterface = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+    
+    consoleInterface.on('line', (input) => {
+        const message = input.trim();
+        
+        if (!message) {
+            return;
+        }
+        
+        // Spezielle Console-Befehle
+        if (message.toLowerCase() === 'exit' || message.toLowerCase() === 'quit') {
+            console.log('[BOT] Beende...');
+            shutdown();
+            return;
+        }
+        
+        if (message.toLowerCase() === 'help') {
+            showHelp();
+            return;
+        }
+        
+        if (message.toLowerCase() === 'status') {
+            showStatus();
+            return;
+        }
+        
+        if (message.toLowerCase() === 'reconnect') {
+            console.log('[BOT] Starte Reconnect...');
+            if (client) {
+                client.end();
+            }
+            scheduleReconnect();
+            return;
+        }
+        
+        if (message.toLowerCase() === 'clear') {
+            console.clear();
+            return;
+        }
+        
+        // Alles andere wird an Minecraft gesendet
+        console.log(`[→ MC] ${message}`);
+        sendToMinecraft(message);
+    });
+    
+    console.log('\n╔════════════════════════════════════════════════╗');
+    console.log('║  CONSOLE INPUT AKTIV                           ║');
+    console.log('╚════════════════════════════════════════════════╝');
+    console.log('\nTippe Befehle ein, sie gehen direkt zu Minecraft.');
+    console.log('Bot-Befehle: help, status, reconnect, clear, exit');
+    console.log('Beispiele:');
+    console.log('  /list          - Spielerliste');
+    console.log('  /msg user hallo - Private Nachricht');
+    console.log('  Hallo Welt!    - Normale Chat-Nachricht');
+    console.log('');
+}
 
-rl.on('line', (input) => {
-    if (input.trim() === '\\stop') {
-        console.log('Stopping...');
-        if (bot) bot.quit();
-        rl.close();
-        process.exit(0);
+function showHelp() {
+    console.log('\n╔════════════════════════════════════════════════╗');
+    console.log('║  HILFE - MINECRAFT CONSOLE BOT                ║');
+    console.log('╚════════════════════════════════════════════════╝');
+    console.log('\nBOT-BEFEHLE (nur in Console):');
+    console.log('  help       - Diese Hilfe anzeigen');
+    console.log('  status     - Bot-Status anzeigen');
+    console.log('  reconnect  - Verbindung neu starten');
+    console.log('  clear      - Console leeren');
+    console.log('  exit/quit  - Bot beenden');
+    console.log('\nMINECRAFT-BEFEHLE (gehen zu Server):');
+    console.log('  /command   - Minecraft Command (z.B. /list)');
+    console.log('  Nachricht  - Normale Chat-Nachricht');
+    console.log('\nTIP: Alles was du hier eingibst, wird direkt an');
+    console.log('     Minecraft gesendet, außer die Bot-Befehle oben.');
+    console.log('');
+}
+
+function showStatus() {
+    console.log('\n╔════════════════════════════════════════════════╗');
+    console.log('║  BOT STATUS                                   ║');
+    console.log('╚════════════════════════════════════════════════╝');
+    console.log('');
+    console.log(`  Verbunden:   ${client ? 'Ja' : 'Nein'}`);
+    if (client) {
+        console.log(`  Spieler:     ${client.username}`);
+    }
+    console.log(`  Server:      ${config.host}:${config.port}`);
+    console.log(`  Version:     ${config.version}`);
+    console.log(`  Account:     ${config.account}`);
+    console.log('');
+}
+
+// ===== MINECRAFT COMMUNICATION =====
+function sendToMinecraft(message) {
+    if (!client) {
+        console.log('[FEHLER] Nicht mit Minecraft verbunden');
         return;
     }
-    
-    if (bot && isConnected) {
-        try {
-            bot.chat(input);
-            console.log(`> ${input}`);
-        } catch (e) {
-            console.log(`FAILED: ${e.message}`);
-        }
-    } else {
-        console.log('Not connected yet');
-    }
-});
-
-let versionIndex = 0;
-let connectionAttempts = 0;
-
-function createBot() {
-    if (isShuttingDown) return;
-    
-    // If we've tried all versions, start over with longer delay
-    if (versionIndex >= VERSIONS_TO_TRY.length) {
-        connectionAttempts++;
-        if (connectionAttempts > 3) {
-            console.log('\n' + '='.repeat(60));
-            console.log('ERROR: Could not connect with any version!');
-            console.log('This usually means:');
-            console.log('1. Your mineflayer/minecraft-protocol is outdated');
-            console.log('2. The server requires a specific protocol version');
-            console.log('\nTry running:');
-            console.log('  npm install mineflayer@latest minecraft-protocol@latest');
-            console.log('='.repeat(60));
-            process.exit(1);
-        }
-        versionIndex = 0;
-        console.log('\nRetrying all versions again...\n');
-        setTimeout(() => createBot(), 10000);
-        return;
-    }
-    
-    const version = process.env.VERSION || VERSIONS_TO_TRY[versionIndex];
-    currentVersion = version;
-    
-    const [host, port] = SERVER_IP.includes(':') ? SERVER_IP.split(':') : [SERVER_IP, '25565'];
-    
-    console.log(`\n[${new Date().toLocaleTimeString()}] Trying version ${version}...`);
     
     try {
-        bot = mineflayer.createBot({
-            host: host,
-            port: parseInt(port),
-            version: version,
-            auth: 'microsoft',
-            profilesFolder: AUTH_CACHE_DIR,
-            viewDistance: 'tiny',
-            skipValidation: true,
-            hideErrors: true,
-            checkTimeoutInterval: 120000
-        });
-
-        let hasError = false;
-        let errorTimeout = null;
-        let hasTeleported = false;
-
-        // Detect critical errors early
-        bot._client.on('error', (err) => {
-            const msg = err.message || '';
-            
-            // Ignore non-critical parse errors
-            if (msg.includes('Parse error') && !msg.includes('PartialReadError')) {
-                return;
-            }
-            
-            // PartialReadError = wrong version
-            if (msg.includes('PartialReadError') || msg.includes('Read error')) {
-                if (!hasError) {
-                    hasError = true;
-                    console.log(`  ✗ Version ${version} - Protocol error (wrong version)`);
-                    
-                    // Cleanup and try next version
-                    try {
-                        bot.quit();
-                    } catch (e) {}
-                    
-                    bot = null;
-                    isConnected = false;
-                    versionIndex++;
-                    
-                    // Quick retry with next version
-                    setTimeout(() => createBot(), 2000);
-                }
-                return;
-            }
-        });
-
-        bot.on('login', () => {
-            if (hasError) return;
-            console.log(`  ✓ Version ${version} - Login successful!`);
-        });
-
-        bot.on('spawn', () => {
-            if (hasError) return;
-            isConnected = true;
-            versionIndex = 0; // Reset for next disconnect
-            connectionAttempts = 0;
-            
-            console.log(`  ✓ Connected as ${bot.username}`);
-            console.log('\n' + '='.repeat(60));
-            console.log('READY - Type messages and press Enter');
-            console.log('Type \\stop to quit');
-            console.log('='.repeat(60) + '\n');
-            
-            // Send connection notification to Discord
-            sendToDiscord(`✅ **${bot.username}** connected to server`);
-            
-            // Auto-teleport if we were kicked
-            if (wasKicked && AUTO_TELEPORT_COMMAND && !hasTeleported) {
-                hasTeleported = true;
-                wasKicked = false;
-                
-                console.log(`[Auto-Teleport] Executing "${AUTO_TELEPORT_COMMAND}" in ${TELEPORT_DELAY/1000}s...`);
-                
-                setTimeout(() => {
-                    if (bot && isConnected) {
-                        try {
-                            bot.chat(AUTO_TELEPORT_COMMAND);
-                            console.log(`[Auto-Teleport] ✓ Executed: ${AUTO_TELEPORT_COMMAND}`);
-                            sendToDiscord(`🏠 Auto-teleported: \`${AUTO_TELEPORT_COMMAND}\``);
-                        } catch (e) {
-                            console.log(`[Auto-Teleport] ✗ Failed: ${e.message}`);
-                        }
-                    }
-                }, TELEPORT_DELAY);
-            }
-            
-            // Anti-AFK
-            if (ENABLE_JUMP) {
-                setInterval(() => {
-                    if (bot && bot.entity && isConnected) {
-                        try {
-                            bot.setControlState('jump', true);
-                            setTimeout(() => {
-                                if (bot) bot.setControlState('jump', false);
-                            }, 500);
-                        } catch (e) {}
-                    }
-                }, JUMP_INTERVAL);
-            }
-        });
-
-        bot.on('message', (message) => {
-            if (!isConnected || hasError) return;
-            try {
-                const text = message.toString().replace(/§[0-9a-fk-or]/g, '').trim();
-                if (text) {
-                    console.log(text);
-                    
-                    // Send to Discord (1:1 copy)
-                    sendToDiscord(text);
-                }
-            } catch (e) {}
-        });
-
-        bot.on('kicked', (reason) => {
-            if (hasError) return;
-            isConnected = false;
-            wasKicked = true; // Mark that we were kicked for auto-teleport
-            hasTeleported = false; // Reset teleport flag
-            
-            let text = '';
-            try {
-                if (typeof reason === 'object' && reason.value && reason.value.text && reason.value.text.value) {
-                    text = reason.value.text.value;
-                } else {
-                    text = typeof reason === 'string' ? reason : JSON.stringify(reason);
-                }
-            } catch (e) { text = 'Unknown'; }
-            
-            console.log(`\nKicked: ${text}`);
-            console.log('Reconnecting in 5s...');
-            
-            // Send kick notification to Discord
-            sendToDiscord(`⚠️ **Kicked:** ${text}`);
-            
-            bot = null;
-            setTimeout(() => createBot(), 5000);
-        });
-
-        bot.on('error', (err) => {
-            if (hasError || isShuttingDown) return;
-            
-            const msg = err.message || '';
-            
-            // Ignore parse errors
-            if (msg.includes('Parse error') && !msg.includes('PartialReadError')) {
-                return;
-            }
-            
-            // Protocol errors = try next version
-            if (msg.includes('PartialReadError') || msg.includes('Read error')) {
-                if (!hasError) {
-                    hasError = true;
-                    console.log(`  ✗ Version ${version} - Protocol mismatch`);
-                    versionIndex++;
-                    setTimeout(() => createBot(), 2000);
-                }
-                return;
-            }
-            
-            console.log(`Error: ${msg}`);
-            sendToDiscord(`❌ **Error:** ${msg}`);
-        });
-
-        bot.on('end', () => {
-            if (hasError || isShuttingDown) return;
-            isConnected = false;
-            console.log('\nDisconnected - reconnecting in 5s...');
-            sendToDiscord('🔴 **Disconnected** - reconnecting...');
-            bot = null;
-            setTimeout(() => createBot(), 5000);
-        });
-        
-        bot.on('death', () => {
-            console.log('[Death] Bot died');
-            sendToDiscord('💀 **Died**');
-            setTimeout(() => {
-                try {
-                    if (bot && bot._client && !bot._client.ended) {
-                        bot.respawn();
-                        console.log('[Death] Respawned');
-                        sendToDiscord('✅ **Respawned**');
-                    }
-                } catch (e) {}
-            }, 1000);
-        });
-        
-        // Timeout if no connection after 15 seconds
-        errorTimeout = setTimeout(() => {
-            if (!isConnected && !hasError) {
-                hasError = true;
-                console.log(`  ✗ Version ${version} - Timeout`);
-                try {
-                    bot.quit();
-                } catch (e) {}
-                bot = null;
-                versionIndex++;
-                createBot();
-            }
-        }, 15000);
-
+        if (message.startsWith('/')) {
+            // Command senden
+            client.write('chat_command', {
+                command: message.substring(1),
+                timestamp: BigInt(Date.now()),
+                salt: 0n,
+                argumentSignatures: [],
+                signedPreview: false,
+                messageCount: 0,
+                acknowledged: Buffer.alloc(3)
+            });
+        } else {
+            // Normale Nachricht senden
+            client.write('chat', {
+                message: message,
+                position: 0,
+                sender: client.uuid
+            });
+        }
     } catch (error) {
-        console.log(`Failed to create bot: ${error.message}`);
-        versionIndex++;
-        setTimeout(() => createBot(), 2000);
+        console.error('[SENDEN] Fehler:', error.message);
     }
 }
 
-createBot();
+// ===== CLIENT MANAGEMENT =====
+async function createClient() {
+    console.log(`[BOT] Verbinde zu ${config.host}:${config.port}...`);
+    
+    try {
+        const authData = await getMicrosoftAuth();
+        
+        const clientOptions = {
+            host: config.host,
+            port: config.port,
+            version: config.version,
+            username: authData.selectedProfile.name,
+            accessToken: authData.accessToken,
+            auth: 'microsoft',
+            session: authData,
+            hideErrors: true,
+            skipValidation: true
+        };
+        
+        console.log(`[BOT] Verbinde als: ${authData.selectedProfile.name}`);
+        client = mc.createClient(clientOptions);
+        
+        setupClientHandlers();
+        
+    } catch (error) {
+        console.error('[BOT] Verbindungsfehler:', error.message);
+        scheduleReconnect();
+    }
+}
+
+function setupClientHandlers() {
+    client.on('login', () => {
+        console.log('\n✅ ERFOLGREICH MIT MINECRAFT VERBUNDEN');
+        console.log(`👤 Spieler: ${client.username}`);
+        console.log(`🌐 Server: ${config.host}:${config.port}`);
+        console.log(`📅 Version: ${config.version}`);
+        console.log('\n✅ BOT BEREIT - Console Input aktiv\n');
+        
+        // Console Input nach Login aktivieren
+        setTimeout(() => {
+            setupConsoleInput();
+        }, 1000);
+    });
+    
+    // Einfaches Chat-Logging (optional)
+    client.on('player_chat', (packet) => {
+        try {
+            const message = packet.plainMessage || packet.unsignedContent;
+            if (message) {
+                // Entferne Farbcodes
+                const cleanMessage = message.replace(/§[0-9a-fklmnor]/gi, '');
+                if (cleanMessage.trim()) {
+                    console.log(`[CHAT] ${cleanMessage}`);
+                }
+            }
+        } catch (error) {}
+    });
+    
+    client.on('system_chat', (packet) => {
+        try {
+            if (packet.content) {
+                // Einfache Text-Extraktion
+                let text = '';
+                if (typeof packet.content === 'string') {
+                    text = packet.content;
+                } else if (packet.content.value && packet.content.value.text) {
+                    text = packet.content.value.text.value || '';
+                }
+                
+                if (text && text.trim()) {
+                    const cleanText = text.replace(/§[0-9a-fklmnor]/gi, '').trim();
+                    if (cleanText) {
+                        console.log(`[SYSTEM] ${cleanText}`);
+                    }
+                }
+            }
+        } catch (error) {}
+    });
+    
+    client.on('disconnect', (packet) => {
+        let reason = 'Verbindung getrennt';
+        try {
+            if (packet.reason && typeof packet.reason === 'string') {
+                reason = packet.reason.replace(/§[0-9a-fklmnor]/gi, '');
+            }
+        } catch (error) {}
+        
+        console.log(`\n❌ VERBINDUNG GETRENNT: ${reason}`);
+        
+        if (consoleInterface) {
+            consoleInterface.close();
+            consoleInterface = null;
+        }
+        
+        scheduleReconnect();
+    });
+    
+    client.on('error', (error) => {
+        console.error('[BOT] Fehler:', error.message);
+        
+        if (consoleInterface) {
+            consoleInterface.close();
+            consoleInterface = null;
+        }
+        
+        scheduleReconnect();
+    });
+    
+    client.on('end', () => {
+        console.log('[BOT] Verbindung beendet');
+        
+        if (consoleInterface) {
+            consoleInterface.close();
+            consoleInterface = null;
+        }
+        
+        scheduleReconnect();
+    });
+    
+    // Resource Pack automatisch akzeptieren
+    client.on('resource_pack_send', () => {
+        console.log('[BOT] Akzeptiere Resource Pack');
+        try {
+            client.write('resource_pack_receive', { result: 0 });
+        } catch (error) {}
+    });
+    
+    // Ignoriere andere Pakete
+    const ignoredPackets = ['keep_alive', 'position', 'entity_move_look', 'map_chunk', 'update_light'];
+    ignoredPackets.forEach(packetName => {
+        client.on(packetName, () => {});
+    });
+}
+
+function scheduleReconnect() {
+    if (client) {
+        try {
+            client.end();
+        } catch (error) {}
+        client = null;
+    }
+    
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+    }
+    
+    console.log('[BOT] Reconnect in 10 Sekunden...');
+    reconnectTimeout = setTimeout(() => {
+        createClient();
+    }, 10000);
+}
+
+// ===== SHUTDOWN =====
+function shutdown() {
+    console.log('\n🛑 BOT WIRD BEENDET...');
+    
+    if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+    }
+    
+    if (consoleInterface) {
+        consoleInterface.close();
+        consoleInterface = null;
+    }
+    
+    if (client) {
+        try {
+            client.end();
+            console.log('[BOT] Verbindung zu Minecraft beendet');
+        } catch (error) {}
+    }
+    
+    console.log('[BOT] Erfolgreich beendet');
+    process.exit(0);
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
+// ===== START =====
+async function start() {
+    console.log('╔════════════════════════════════════════════════╗');
+    console.log('║  MINECRAFT SIMPLE BOT                         ║');
+    console.log('║  Nur Login + Console Input                    ║');
+    console.log('╚════════════════════════════════════════════════╝');
+    console.log('\n📋 FUNKTIONEN:');
+    console.log('  • Microsoft Authentifizierung');
+    console.log('  • Automatischer Login');
+    console.log('  • Console Input zu Minecraft');
+    console.log('  • Automatischer Reconnect');
+    console.log('  • Keine automatischen Aktionen');
+    console.log('  • Kein Chat-Parsing');
+    console.log('  • Kein Home/TPA System');
+    console.log('');
+    console.log('⚙️  Konfiguration: config.json anpassen');
+    console.log('▶️  Starte mit: npm start');
+    console.log('❌ Beenden mit: exit oder Ctrl+C');
+    console.log('');
+    
+    loadConfig();
+    await createClient();
+}
+
+start();
