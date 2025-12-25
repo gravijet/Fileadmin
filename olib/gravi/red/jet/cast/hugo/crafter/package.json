@@ -1,17 +1,24 @@
 {
-  "name": "GraviJet AFK Client",
+  "name": "minecraft-simple-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Einfacher Minecraft Bot mit Console-Input",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "bun index.js"
   },
-  "keywords": [],
+  "keywords": [
+    "minecraft",
+    "bot",
+    "console"
+  ],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "license": "MIT",
   "dependencies": {
-    "mineflayer": "^4.33.0",
+    "minecraft-protocol": "^1.47.0",
     "prismarine-auth": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
