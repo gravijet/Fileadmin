@@ -26,18 +26,25 @@ if (fs.existsSync(CONFIG_PATH)) {
     console.log('config.json erstellt');
 }
 
-// Microsoft Auth
+// Microsoft Auth mit Cache
 async function getMicrosoftAuth() {
-    console.log('Starte Microsoft Authentifizierung...');
+    console.log('Prüfe Auth-Cache...');
+    
+    // Authflow mit Cache-Verzeichnis erstellen
+    // WICHTIG: './auth_cache' - Token wird hier gespeichert
+    const authCachePath = './auth_cache';
     
     try {
-        const authflow = new Authflow(config.account, './', {
+        const authflow = new Authflow(config.account, authCachePath, {
             authTitle: Titles.MinecraftJava,
             deviceType: 'Win32',
             flow: 'sisu',
             onMsaCode: (data) => {
-                console.log('\nÖffne im Browser:', data.verification_uri);
+                console.log('\n⚠️  ERSTE ANMELDUNG ERFORDERLICH! ⚠️');
+                console.log('Öffne im Browser:', data.verification_uri);
                 console.log('Code eingeben:', data.user_code, '\n');
+                console.log('Diese Anmeldung ist nur EINMAL nötig!');
+                console.log('Token wird gespeichert für zukünftige Starts.\n');
             }
         });
         
@@ -54,7 +61,16 @@ async function getMicrosoftAuth() {
         
     } catch (error) {
         console.error('Auth Fehler:', error.message);
-        process.exit(1);
+        
+        // Wenn Auth fehlschlägt, Cache löschen und neu versuchen
+        if (fs.existsSync('./auth_cache')) {
+            console.log('Lösche Auth-Cache und versuche neu...');
+            fs.rmSync('./auth_cache', { recursive: true, force: true });
+        }
+        
+        // Neu starten
+        console.log('Starte Auth neu...');
+        return getMicrosoftAuth();
     }
 }
 
@@ -118,12 +134,21 @@ function setupConsoleInput() {
             return;
         }
         
+        if (message.toLowerCase() === 'clearcache') {
+            console.log('Lösche Auth-Cache...');
+            if (fs.existsSync('./auth_cache')) {
+                fs.rmSync('./auth_cache', { recursive: true, force: true });
+                console.log('Auth-Cache gelöscht. Beim nächsten Start neue Anmeldung nötig.');
+            }
+            return;
+        }
+        
         sendToMinecraft(message);
     });
     
     console.log('\nConsole Input bereit!');
     console.log('Eingaben gehen direkt zu Minecraft.');
-    console.log('exit = beenden, reconnect = neu verbinden\n');
+    console.log('exit = beenden, reconnect = neu verbinden, clearcache = Auth-Cache löschen\n');
 }
 
 // Client erstellen
@@ -248,6 +273,11 @@ process.on('SIGINT', shutdown);
 
 // Start
 console.log('Minecraft Console Bot');
-console.log('=====================\n');
+console.log('=====================');
+console.log('\n⚠️  WICHTIG:');
+console.log('- Erster Start: Microsoft Anmeldung im Browser nötig');
+console.log('- Danach: Token wird gespeichert, keine erneute Anmeldung');
+console.log('- Cache wird in ./auth_cache/ gespeichert');
+console.log('- Bei Problemen: clearcache Befehl verwenden\n');
 
 createClient();
